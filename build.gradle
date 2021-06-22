@@ -1,0 +1,35 @@
+plugins {
+    id 'java'
+    id 'application'
+    id "io.freefair.lombok" version "6.0.0-m2"
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(16)
+    }
+}
+
+mainClassName = 'keydb.KeyDB'
+
+repositories {
+    mavenCentral()
+}
+
+jar {
+    archiveBaseName = 'key-db'
+    archiveVersion = '0.1.0'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+dependencies {
+    implementation("io.vavr:vavr:0.10.3")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
+    testImplementation("com.google.jimfs:jimfs:1.2")
+    testImplementation("org.assertj:assertj-core:3.11.1")
+    testImplementation('org.mockito:mockito-core:3.11.0')
+}

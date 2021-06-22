@@ -1,0 +1,19 @@
+# KeyDB
+
+Simple key-value store based on a log-structured merge-tree architecture.
+
+## Todo
+
+- [x] Build basic building blocks (MemTable, SparseIndex, Segment)
+- [ ] Implement final logic in KeyDB to get MVP
+- [ ] Don't reopen file handle on each `set`
+- [ ] Switch underlying key and value types to be arbitrary byte arrays
+- [ ] Basic compaction
+- [ ] Look into more efficient way of serializing the data (protobuf?)-
+- [ ] Bloom-filter for efficiently handling missing keys
+- [ ] Write benchmarking module (to compare above etc.)
+- [ ] MULTITHREADING??!
+- [ ] More advanced compaction (leveled?)
+- [ ] Some basic logging
+- [ ] More interesting metrics tracking
+- [ ] Build a server (gRPC)
