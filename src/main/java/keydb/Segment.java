@@ -3,6 +3,7 @@ package keydb;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import lombok.Cleanup;
+import lombok.NonNull;
 import lombok.Value;
 
 import java.io.BufferedInputStream;
@@ -16,9 +17,9 @@ import java.nio.file.Path;
 @Value
 public class Segment {
 
-    SparseIndex index;
-    Path rootPath;
-    long id;
+    @NonNull SparseIndex index;
+    @NonNull Path rootPath;
+    @NonNull Long id;
 
     public Try<Option<String>> get(final String key) {
         return Try.of(() -> {
@@ -53,7 +54,7 @@ public class Segment {
                 throw new NoSuchFileException(rootPath.toString());
             }
 
-            final long id = Long.parseLong(rootPath.getFileName().toString());
+            final Long id = Long.parseLong(rootPath.getFileName().toString());
             final SparseIndex index = SparseIndex.from(getIndexPath(rootPath)).get();
 
             return new Segment(index, rootPath, id);
