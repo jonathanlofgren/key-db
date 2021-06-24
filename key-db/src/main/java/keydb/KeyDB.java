@@ -1,7 +1,6 @@
 package keydb;
 
 import io.vavr.control.Try;
-import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
@@ -27,7 +26,7 @@ import java.util.stream.Collectors;
 //                  index
 //                  data
 
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+@RequiredArgsConstructor
 public class KeyDB {
 
     @NonNull
@@ -68,14 +67,14 @@ public class KeyDB {
 
     private static KeyDB createDB(final Path path) throws IOException {
         Files.createDirectory(path);
-        Files.createDirectory(path.resolve("segments"));
+        Files.createDirectory(segmentDir(path));
         return new KeyDB(path, createMemTable(path), new ArrayList<>());
     }
 
     private static KeyDB loadDB(final Path rootPath) throws IOException {
         validateDB(rootPath);
 
-        final List<Segment> segments = Files.list(rootPath.resolve("segments"))
+        final List<Segment> segments = Files.list(segmentDir(rootPath))
                 .map(Segment::from)
                 .map(Try::get)
                 .sorted(Comparator.comparing(Segment::getId).reversed())
@@ -85,12 +84,16 @@ public class KeyDB {
     }
 
     private static void validateDB(final Path path) throws IOException {
-        if (!Files.isDirectory(path.resolve("segments"))) {
+        if (!Files.isDirectory(segmentDir(path))) {
             throw new FileNotFoundException("No segment directory found");
         }
     }
 
     private static MemTable createMemTable(final Path path) {
         return new MemTable(path.resolve("memtable"));
+    }
+
+    private static Path segmentDir(final Path path) {
+        return path.resolve("segments");
     }
 }

@@ -1,1 +1,3 @@
 rootProject.name = 'key-db'
+include 'benchmark'
+include 'key-db'

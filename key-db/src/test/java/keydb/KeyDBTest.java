@@ -14,6 +14,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class KeyDBTest extends TestBase {
 
     @Nested
+    class Get {
+
+        @Test
+        void something() {
+
+        }
+
+    }
+
+    @Nested
     class From {
 
         @Nested
