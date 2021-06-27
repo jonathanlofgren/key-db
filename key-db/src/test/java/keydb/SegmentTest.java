@@ -31,7 +31,7 @@ public class SegmentTest extends TestBase {
             memTable.set(key, value);
             map.put(key, value);
         }
-        subject = memTable.writeSegment(existing_segment_path).get();
+        subject = memTable.writeSegment(getPath("/home/user"), 200).get();
         Try.of(() -> Files.createDirectory(invalid_path));
     }
 
@@ -62,10 +62,6 @@ public class SegmentTest extends TestBase {
             @Test
             void itShouldReturnSuccessWithCorrectInstance() {
                 final Segment segment = Segment.from(existing_segment_path).get();
-
-                final Thread thread = new Thread();
-                thread.start();
-
                 assertThat(segment).isEqualTo(subject);
             }
         }

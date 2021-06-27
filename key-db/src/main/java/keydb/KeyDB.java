@@ -1,5 +1,6 @@
 package keydb;
 
+import io.vavr.control.Option;
 import io.vavr.control.Try;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -8,10 +9,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.Deque;
 import java.util.stream.Collectors;
 
 // Layout:
@@ -32,16 +32,25 @@ public class KeyDB {
     @NonNull
     private final Path rootPath;
     @NonNull
-    private final MemTable memTable;
+    private MemTable memTable;
     @NonNull
-    private final List<Segment> segments;
+    private final Deque<Segment> segments;
 
     public void set(final String key, final String value) {
         memTable.set(key, value);
+
+        if (memTable.getSize() >= Config.MEMTABLE_FLUSH_SIZE_BYTES) {
+            segments.push(memTable.writeSegment(segmentDir(rootPath), getNextSegmentId()).get());
+            memTable = createMemTable(rootPath);
+        }
     }
 
-    public Optional<String> get(final String key) {
-        return memTable.get(key);
+    public Option<String> get(final String key) {
+        return memTable.get(key).orElse(() -> segments.stream()
+                .map(segment -> segment.get(key).get())
+                .filter(value -> !value.isEmpty())
+                .findFirst()
+                .orElse(Option.none()));
     }
 
     public int numSegments() {
@@ -55,32 +64,42 @@ public class KeyDB {
      * @return the KeyDB instance
      */
     public static Try<KeyDB> from(final Path path) {
-        return Try.of(() -> Files.isDirectory(path))
-                .mapTry(exists -> {
-                    if (exists) {
-                        return loadDB(path);
-                    } else {
-                        return createDB(path);
-                    }
-                });
+        return Try.of(() -> {
+            if (Files.isDirectory(path)) {
+                return loadDB(path);
+            } else {
+                return createDB(path);
+            }
+        });
     }
 
-    private static KeyDB createDB(final Path path) throws IOException {
-        Files.createDirectory(path);
-        Files.createDirectory(segmentDir(path));
-        return new KeyDB(path, createMemTable(path), new ArrayList<>());
+    private Integer getNextSegmentId() {
+        return segments.isEmpty() ? 0 : segments.peek().getId() + 1;
+    }
+
+    private static KeyDB createDB(final Path rootPath) throws IOException {
+        Files.createDirectory(rootPath);
+        Files.createDirectory(segmentDir(rootPath));
+        return new KeyDB(rootPath, createMemTable(rootPath), new ArrayDeque<>());
     }
 
     private static KeyDB loadDB(final Path rootPath) throws IOException {
         validateDB(rootPath);
 
-        final List<Segment> segments = Files.list(segmentDir(rootPath))
+        final Deque<Segment> segments = Files.list(segmentDir(rootPath))
                 .map(Segment::from)
                 .map(Try::get)
                 .sorted(Comparator.comparing(Segment::getId).reversed())
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(ArrayDeque::new));
 
-        return new KeyDB(rootPath, createMemTable(rootPath), segments);
+        return new KeyDB(rootPath, loadOrCreateMemTable(rootPath), segments);
+    }
+
+    private static MemTable loadOrCreateMemTable(final Path rootPath) {
+        if (Files.isRegularFile(memTablePath(rootPath))) {
+            return MemTable.from(memTablePath(rootPath)).get();
+        }
+        return createMemTable(rootPath);
     }
 
     private static void validateDB(final Path path) throws IOException {
@@ -89,8 +108,12 @@ public class KeyDB {
         }
     }
 
-    private static MemTable createMemTable(final Path path) {
-        return new MemTable(path.resolve("memtable"));
+    private static MemTable createMemTable(final Path dir) {
+        return new MemTable(memTablePath(dir));
+    }
+
+    private static Path memTablePath(final Path path) {
+        return path.resolve("memtable");
     }
 
     private static Path segmentDir(final Path path) {

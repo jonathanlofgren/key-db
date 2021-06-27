@@ -62,7 +62,7 @@ public class MemTableTest extends TestBase {
         void itReturnsCorrectData() {
             final MemTable memTable = new MemTable(not_existing_path);
 
-            assertThat(memTable.get("hello").isPresent()).isFalse();
+            assertThat(memTable.get("hello").isEmpty()).isTrue();
             memTable.set("hello", "there");
             assertThat(memTable.get("hello").get()).isEqualTo("there");
         }
@@ -94,23 +94,23 @@ public class MemTableTest extends TestBase {
 
         @Test
         void itWritesNewSegmentFiles() {
-            final Path path = getPath("/home/user/100");
+            final Path path = getPath("/home/user/");
 
-            final Segment segment = subject.writeSegment(path).get();
+            final Segment segment = subject.writeSegment(path, 100).get();
 
             assertThat(segment.getId()).isEqualTo(100);
-            assertThat(segment.getRootPath()).isEqualTo(path);
-            assertThat(Files.isDirectory(path)).isTrue();
-            assertThat(Files.isRegularFile(path.resolve("data"))).isTrue();
-            assertThat(Files.isRegularFile(path.resolve("index"))).isTrue();
+            assertThat(segment.getRootPath()).isEqualTo(path.resolve("100"));
+            assertThat(Files.isDirectory(path.resolve("100"))).isTrue();
+            assertThat(Files.isRegularFile(path.resolve("100/data"))).isTrue();
+            assertThat(Files.isRegularFile(path.resolve("100/index"))).isTrue();
         }
 
         @Test
         void itCreatesIndexAtFirstKey() {
-            final Path path = getPath("/home/user/100");
-            subject.writeSegment(path);
+            final Path path = getPath("/home/user/");
+            subject.writeSegment(path, 100);
 
-            final SparseIndex index = SparseIndex.from(path.resolve("index")).get();
+            final SparseIndex index = SparseIndex.from(path.resolve("100/index")).get();
 
             assertThat(index.getIndices().size()).isGreaterThan(1);
             assertThat(index.getIndices()).first().matches(ix -> ix._2 == 0);

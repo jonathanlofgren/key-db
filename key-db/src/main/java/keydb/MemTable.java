@@ -1,5 +1,6 @@
 package keydb;
 
+import io.vavr.control.Option;
 import io.vavr.control.Try;
 import lombok.EqualsAndHashCode;
 
@@ -9,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
-import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -35,8 +35,8 @@ public class MemTable {
         writeToLog(entry);
     }
 
-    public Optional<String> get(final String key) {
-        return Optional.ofNullable(data.get(key));
+    public Option<String> get(final String key) {
+        return Option.of(data.get(key));
     }
 
     private void setNoWrite(final Entry entry) {
@@ -67,15 +67,15 @@ public class MemTable {
         });
     }
 
-    public Try<Segment> writeSegment(final Path rootPath) {
+    public Try<Segment> writeSegment(final Path path, final Integer id) {
         return Try.of(() -> {
-            Files.createDirectory(rootPath);
-            final long id = Long.parseLong(rootPath.getFileName().toString());
+            final Path segmentDir = path.resolve(String.valueOf(id));
+            Files.createDirectory(segmentDir);
 
-            return FileUtils.applyWithOutput(Segment.getDataPath(rootPath), dataOutputStream -> {
+            return FileUtils.applyWithOutput(Segment.getDataPath(segmentDir), dataOutputStream -> {
                 final SparseIndex index = writeDataAndCreateIndex(dataOutputStream);
-                index.write(Segment.getIndexPath(rootPath));
-                return new Segment(index, rootPath, id);
+                index.write(Segment.getIndexPath(segmentDir));
+                return new Segment(index, segmentDir, id);
             });
         });
     }

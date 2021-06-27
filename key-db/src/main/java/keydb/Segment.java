@@ -3,8 +3,10 @@ package keydb;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import lombok.Cleanup;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NonNull;
-import lombok.Value;
+import lombok.RequiredArgsConstructor;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -14,12 +16,17 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 
-@Value
+@RequiredArgsConstructor
+@Getter
+@EqualsAndHashCode
 public class Segment {
 
-    @NonNull SparseIndex index;
-    @NonNull Path rootPath;
-    @NonNull Long id;
+    @NonNull
+    private final SparseIndex index;
+    @NonNull
+    private final Path rootPath;
+    @NonNull
+    private final Integer id;
 
     public Try<Option<String>> get(final String key) {
         return Try.of(() -> {
@@ -54,7 +61,7 @@ public class Segment {
                 throw new NoSuchFileException(rootPath.toString());
             }
 
-            final Long id = Long.parseLong(rootPath.getFileName().toString());
+            final Integer id = Integer.parseInt(rootPath.getFileName().toString());
             final SparseIndex index = SparseIndex.from(getIndexPath(rootPath)).get();
 
             return new Segment(index, rootPath, id);
