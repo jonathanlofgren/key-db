@@ -41,7 +41,7 @@ public class KeyDB {
 
         if (memTable.getSize() >= Config.MEMTABLE_FLUSH_SIZE_BYTES) {
             segments.push(memTable.writeSegment(segmentDir(rootPath), getNextSegmentId()).get());
-            memTable = createMemTable(rootPath);
+            memTable = emptyMemTable(rootPath);
         }
     }
 
@@ -80,7 +80,7 @@ public class KeyDB {
     private static KeyDB createDB(final Path rootPath) throws IOException {
         Files.createDirectory(rootPath);
         Files.createDirectory(segmentDir(rootPath));
-        return new KeyDB(rootPath, createMemTable(rootPath), new ArrayDeque<>());
+        return new KeyDB(rootPath, emptyMemTable(rootPath), new ArrayDeque<>());
     }
 
     private static KeyDB loadDB(final Path rootPath) throws IOException {
@@ -99,7 +99,7 @@ public class KeyDB {
         if (Files.isRegularFile(memTablePath(rootPath))) {
             return MemTable.from(memTablePath(rootPath)).get();
         }
-        return createMemTable(rootPath);
+        return emptyMemTable(rootPath);
     }
 
     private static void validateDB(final Path path) throws IOException {
@@ -108,7 +108,7 @@ public class KeyDB {
         }
     }
 
-    private static MemTable createMemTable(final Path dir) {
+    private static MemTable emptyMemTable(final Path dir) {
         return new MemTable(memTablePath(dir));
     }
 

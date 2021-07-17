@@ -14,7 +14,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 @EqualsAndHashCode
-public class MemTable {
+public class MemTable implements AutoCloseable {
 
     private final SortedMap<String, String> data;
     private final Path logPath;
@@ -83,14 +83,14 @@ public class MemTable {
     private SparseIndex writeDataAndCreateIndex(final DataOutputStream dataOutput) throws IOException {
         long bytesWrittenTotal = 0;
         final SparseIndex index = new SparseIndex();
-
         long bytesWrittenSinceLastIndex = Config.BYTES_PER_INDEX;
+
         for (final Map.Entry<String, String> entry : data.entrySet()) {
             if (bytesWrittenSinceLastIndex >= Config.BYTES_PER_INDEX) {
                 index.insert(entry.getKey(), bytesWrittenTotal);
                 bytesWrittenSinceLastIndex = 0;
             }
-            final long bytesWritten = DataUtils.writeEntry(dataOutput, new Entry(entry.getKey(), entry.getValue()));
+            final long bytesWritten = DataUtils.writeEntry(dataOutput, Entry.of(entry));
             bytesWrittenTotal += bytesWritten;
             bytesWrittenSinceLastIndex += bytesWritten;
         }
@@ -103,5 +103,10 @@ public class MemTable {
 
     private void incrementSize(final int s) {
         size += s;
+    }
+
+    @Override
+    public void close() throws Exception {
+        // TODO: 17/7/21 to close the memtable logfile handle
     }
 }
