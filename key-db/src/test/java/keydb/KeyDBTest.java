@@ -89,7 +89,7 @@ public class KeyDBTest extends TestBase {
     }
 
     @Nested
-    class Set {
+    class Put {
 
         KeyDB db;
         MemTable mockMemTable;
@@ -99,7 +99,7 @@ public class KeyDBTest extends TestBase {
         void setUp() {
             segments = new ArrayDeque<>();
             mockMemTable = mock(MemTable.class);
-            db = new KeyDB(getPath("/home/user/db"), mockMemTable, segments);
+            db = new KeyDB(getPath("/home/user/"), mockMemTable, segments);
             Try.run(() -> Files.createDirectory(getPath("/home/user/db/segments/")));
         }
 
@@ -113,9 +113,9 @@ public class KeyDBTest extends TestBase {
 
             @Test
             void itShouldOnlySaveToMemTable() {
-                db.set("foo", "bar");
+                db.put("foo", "bar");
 
-                verify(mockMemTable).set("foo", "bar");
+                verify(mockMemTable).put("foo", "bar");
                 verify(mockMemTable).getSize();
                 assertThat(db.numSegments()).isEqualTo(0);
                 verifyNoMoreInteractions(mockMemTable);
@@ -133,11 +133,11 @@ public class KeyDBTest extends TestBase {
 
             @Test
             void itShouldFlushToSegmentAndCreateNewMemTable() {
-                db.set("foo", "bar");
+                db.put("foo", "bar");
 
-                verify(mockMemTable).set("foo", "bar");
+                verify(mockMemTable).put("foo", "bar");
                 verify(mockMemTable).getSize();
-                verify(mockMemTable).writeSegment(getPath("/home/user/db/segments"), 0);
+                verify(mockMemTable).writeSegment(getPath("/home/user/segments"), 0);
                 assertThat(db.numSegments()).isEqualTo(1);
                 verifyNoMoreInteractions(mockMemTable);
             }
@@ -198,8 +198,8 @@ public class KeyDBTest extends TestBase {
 
                     // Write some data to memTable file
                     final MemTable memtable = new MemTable(path.resolve("memtable"));
-                    memtable.set("a", "1");
-                    memtable.set("b", "2");
+                    memtable.put("a", "1");
+                    memtable.put("b", "2");
                 }
 
                 @Test

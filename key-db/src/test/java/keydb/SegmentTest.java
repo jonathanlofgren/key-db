@@ -28,7 +28,7 @@ public class SegmentTest extends TestBase {
         for (int i = 0; i < 100; i++) {
             final String key = UUID.randomUUID().toString().substring(0, 10);
             final String value = UUID.randomUUID().toString();
-            memTable.set(key, value);
+            memTable.put(key, value);
             map.put(key, value);
         }
         subject = memTable.writeSegment(getPath("/home/user"), 200).get();

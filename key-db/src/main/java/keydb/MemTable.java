@@ -2,35 +2,42 @@ package keydb;
 
 import io.vavr.control.Option;
 import io.vavr.control.Try;
+import keydb.file.InputFileManager;
+import keydb.file.OutputFileManager;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-@EqualsAndHashCode
+@EqualsAndHashCode(exclude = {"fileManager"})
 public class MemTable implements AutoCloseable {
 
     private final SortedMap<String, String> data;
     private final Path logPath;
-    private int size;
+    private final OutputFileManager fileManager;
+    @Getter
+    private long size;
 
     MemTable(final Path logPath) {
         this.data = new TreeMap<>();
         this.logPath = logPath;
+        this.fileManager = new OutputFileManager(logPath, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
         this.size = 0;
     }
 
-    public void set(final String key, final String value) {
-        set(new Entry(key, value));
+    public void put(final String key, final String value) {
+        put(new Entry(key, value));
     }
 
-    public void set(final Entry entry) {
+    public void put(final Entry entry) {
         setNoWrite(entry);
         writeToLog(entry);
     }
@@ -45,30 +52,31 @@ public class MemTable implements AutoCloseable {
     }
 
     private void writeToLog(final Entry entry) {
-        // TODO: should keep file handle open to avoid overhead
-        Try.run(() -> {
-            FileUtils.runWithOutput(logPath, dataOutputStream -> {
-                        DataUtils.writeEntry(dataOutputStream, entry);
-                        dataOutputStream.flush();
-                    },
-                    StandardOpenOption.APPEND, StandardOpenOption.CREATE);
+        fileManager.runWithOutput(dataOutputStream -> {
+            DataUtils.writeEntry(dataOutputStream, entry);
+            dataOutputStream.flush();
         });
     }
 
     public static Try<MemTable> from(final Path path) {
         return Try.of(() -> {
+            if (!Files.isRegularFile(path)) {
+                throw new NoSuchFileException(path.toString());
+            }
             final MemTable memTable = new MemTable(path);
 
-            FileUtils.acceptInputUntilEndOfFile(path, dataInputStream -> {
-                memTable.setNoWrite(DataUtils.readEntry(dataInputStream));
-            });
-
+            try (final InputFileManager inputFileManager = new InputFileManager(path)) {
+                inputFileManager.acceptInputUntilEndOfFile(
+                        dataInputStream -> memTable.setNoWrite(DataUtils.readEntry(dataInputStream)));
+            }
             return memTable;
         });
     }
 
     public Try<Segment> writeSegment(final Path path, final Integer id) {
         return Try.of(() -> {
+            close();
+            Files.delete(logPath);
             final Path segmentDir = path.resolve(String.valueOf(id));
             Files.createDirectory(segmentDir);
 
@@ -97,16 +105,12 @@ public class MemTable implements AutoCloseable {
         return index;
     }
 
-    public long getSize() {
-        return size;
-    }
-
     private void incrementSize(final int s) {
         size += s;
     }
 
     @Override
     public void close() throws Exception {
-        // TODO: 17/7/21 to close the memtable logfile handle
+        fileManager.close();
     }
 }

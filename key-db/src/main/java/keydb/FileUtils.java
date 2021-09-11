@@ -33,16 +33,6 @@ public final class FileUtils {
         }
     }
 
-    public static void runWithOutput(
-            final Path path,
-            final CheckedConsumer<DataOutputStream> consumer,
-            final OpenOption... options) throws Throwable {
-        @Cleanup final OutputStream outputStream = Files.newOutputStream(path, options);
-        @Cleanup final BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
-        @Cleanup final DataOutputStream dataOutputStream = new DataOutputStream(bufferedOutputStream);
-        consumer.accept(dataOutputStream);
-    }
-
     public static <R> R applyWithOutput(
             final Path path,
             final CheckedFunction1<DataOutputStream, R> function,

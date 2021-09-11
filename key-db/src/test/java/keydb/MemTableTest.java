@@ -22,19 +22,19 @@ public class MemTableTest extends TestBase {
 
         // Bytes: 100 * (10 * 2 + 36 * 2 + 8) = 10kB
         for (int i = 0; i < 1000; i++) {
-            subject.set(UUID.randomUUID().toString().substring(0, 10), UUID.randomUUID().toString());
+            subject.put(UUID.randomUUID().toString().substring(0, 10), UUID.randomUUID().toString());
         }
     }
 
     @Nested
-    class Set {
+    class Put {
         @Test
         void itWritesAsEntriesAreSet() {
             final MemTable memTable = new MemTable(not_existing_path);
-            memTable.set("hey", "bob");
+            memTable.put("hey", "bob");
             assertThat(Files.isRegularFile(not_existing_path)).isTrue();
-            memTable.set("another", "alice");
-            memTable.set("{}", "100");
+            memTable.put("another", "alice");
+            memTable.put("{}", "100");
         }
 
     }
@@ -46,11 +46,11 @@ public class MemTableTest extends TestBase {
             final MemTable memTable = new MemTable(not_existing_path);
 
             assertThat(memTable.getSize()).isEqualTo(0);
-            memTable.set("hey", "bob");
+            memTable.put("hey", "bob");
             assertThat(memTable.getSize()).isEqualTo(6 * 2 + 8);
-            memTable.set("another", "alice");
+            memTable.put("another", "alice");
             assertThat(memTable.getSize()).isEqualTo(6 * 2 + 8 + 12 * 2 + 8);
-            memTable.set("{}", "100");
+            memTable.put("{}", "100");
             assertThat(memTable.getSize()).isEqualTo(6 * 2 + 8 + 12 * 2 + 8 + 5 * 2 + 8);
 
         }
@@ -63,7 +63,7 @@ public class MemTableTest extends TestBase {
             final MemTable memTable = new MemTable(not_existing_path);
 
             assertThat(memTable.get("hello").isEmpty()).isTrue();
-            memTable.set("hello", "there");
+            memTable.put("hello", "there");
             assertThat(memTable.get("hello").get()).isEqualTo("there");
         }
     }
@@ -93,11 +93,12 @@ public class MemTableTest extends TestBase {
     class WriteSegment {
 
         @Test
-        void itWritesNewSegmentFiles() {
+        void itWritesNewSegmentFilesAndDeletesMemTableLog() {
             final Path path = getPath("/home/user/");
 
             final Segment segment = subject.writeSegment(path, 100).get();
 
+            assertThat(Files.isRegularFile(existing_path)).isFalse();
             assertThat(segment.getId()).isEqualTo(100);
             assertThat(segment.getRootPath()).isEqualTo(path.resolve("100"));
             assertThat(Files.isDirectory(path.resolve("100"))).isTrue();

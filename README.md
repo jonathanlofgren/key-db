@@ -7,7 +7,7 @@ Simple key-value store based on a log-structured merge-tree architecture.
 - [x] Build basic building blocks (MemTable, SparseIndex, Segment)
 - [x] Implement final logic in KeyDB to get MVP
 - [x] Convert to gradle multi project
-- [ ] Don't reopen file handle on each `set`
+- [x] Don't reopen file handle on each `put`
 - [ ] Switch underlying key and value types to be arbitrary byte arrays?
 - [ ] Basic compaction
 - [ ] Look into more efficient way of serializing the data (protobuf/Avro?)

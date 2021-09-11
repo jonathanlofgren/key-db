@@ -36,8 +36,8 @@ public class KeyDB {
     @NonNull
     private final Deque<Segment> segments;
 
-    public void set(final String key, final String value) {
-        memTable.set(key, value);
+    public void put(final String key, final String value) {
+        memTable.put(key, value);
 
         if (memTable.getSize() >= Config.MEMTABLE_FLUSH_SIZE_BYTES) {
             segments.push(memTable.writeSegment(segmentDir(rootPath), getNextSegmentId()).get());

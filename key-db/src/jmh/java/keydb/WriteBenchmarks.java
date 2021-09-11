@@ -15,6 +15,8 @@ import org.openjdk.jmh.infra.Blackhole;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Benchmark)
@@ -24,6 +26,7 @@ public class WriteBenchmarks {
     private static final Boolean CLEAR_TEST_DB = false;
 
     public KeyDB db;
+    public HashMap<String, String> data;
 
     @Setup(Level.Iteration)
     public void setUp() throws IOException {
@@ -31,6 +34,13 @@ public class WriteBenchmarks {
             FileUtils.deleteDirectory(TEST_DB_PATH.toFile());
         }
         db = KeyDB.from(TEST_DB_PATH).get();
+
+        // Bytes: 10_000 * (14 * 2 + 36 * 2) = 1_000_000 = 1 MB
+        data = new HashMap<>();
+        for (int i = 0; i < 10_000; i++) {
+            data.put(UUID.randomUUID().toString().substring(0, 14), UUID.randomUUID().toString());
+        }
+
     }
 
     @TearDown(Level.Iteration)
@@ -42,8 +52,10 @@ public class WriteBenchmarks {
 
     @Benchmark
     @BenchmarkMode(Mode.Throughput)
-    @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    public void setOneEntry(final WriteBenchmarks bench, final Blackhole bh) {
-        bench.db.set("hello", "there");
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    public void write1MegaByte(final WriteBenchmarks bench, final Blackhole bh) {
+        for (int i = 0; i < 10_000; i++) {
+            bench.db.put(UUID.randomUUID().toString().substring(0, 14), UUID.randomUUID().toString());
+        }
     }
 }

@@ -3,6 +3,8 @@ package keydb;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.control.Try;
+import keydb.file.InputFileManager;
+import keydb.file.OutputFileManager;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -47,11 +49,14 @@ public class SparseIndex {
     public Try<Path> write(final Path path) {
         return Try.of(() -> Files.createFile(path))
                 .andThenTry(() -> {
-                    FileUtils.runWithOutput(path, dataOutputStream -> {
-                        for (final Tuple2<String, Long> index : indices) {
-                            DataUtils.writeIndex(index, dataOutputStream);
-                        }
-                    });
+                    try (final OutputFileManager outputFileManager = new OutputFileManager(path)) {
+                        outputFileManager.runWithOutput(dataOutputStream -> {
+                                    for (final Tuple2<String, Long> index : indices) {
+                                        DataUtils.writeIndex(index, dataOutputStream);
+                                    }
+                                }
+                        );
+                    }
                 });
     }
 
@@ -59,10 +64,11 @@ public class SparseIndex {
         final SparseIndex sparseIndex = new SparseIndex();
 
         return Try.of(() -> {
-            FileUtils.acceptInputUntilEndOfFile(path,
-                    (dataInputStream -> sparseIndex.insert(DataUtils.readIndex(dataInputStream))));
-            return sparseIndex;
+            try (final InputFileManager inputFileManager = new InputFileManager(path)) {
+                inputFileManager.acceptInputUntilEndOfFile(
+                        dataInputStream -> sparseIndex.insert(DataUtils.readIndex(dataInputStream)));
+                return sparseIndex;
+            }
         });
     }
-
 }

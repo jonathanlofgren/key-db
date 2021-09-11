@@ -31,18 +31,4 @@ class FileUtilsTest extends TestBase {
         }
 
     }
-
-    @Nested
-    class DoWithOutput {
-
-        @Test
-        void testIt() throws Throwable {
-            final Path path = getPath("/home/user/some_file");
-
-            FileUtils.runWithOutput(path, (output) -> {
-                output.writeDouble(23.2);
-                output.writeDouble(23.2);
-            });
-        }
-    }
 }
