@@ -24,6 +24,7 @@ public class WriteBenchmarks {
 
     private static final Path TEST_DB_PATH = Path.of("testdb");
     private static final Boolean CLEAR_TEST_DB = false;
+    private static final int TEN_THOUSAND = 10_000;
 
     public KeyDB db;
     public HashMap<String, String> data;
@@ -33,11 +34,11 @@ public class WriteBenchmarks {
         if (Files.isDirectory(TEST_DB_PATH)) {
             FileUtils.deleteDirectory(TEST_DB_PATH.toFile());
         }
-        db = KeyDB.from(TEST_DB_PATH).get();
+        db = KeyDB.create(TEST_DB_PATH);
 
         // Bytes: 10_000 * (14 * 2 + 36 * 2) = 1_000_000 = 1 MB
         data = new HashMap<>();
-        for (int i = 0; i < 10_000; i++) {
+        for (int i = 0; i < TEN_THOUSAND; i++) {
             data.put(UUID.randomUUID().toString().substring(0, 14), UUID.randomUUID().toString());
         }
 
@@ -54,7 +55,7 @@ public class WriteBenchmarks {
     @BenchmarkMode(Mode.Throughput)
     @OutputTimeUnit(TimeUnit.SECONDS)
     public void write1MegaByte(final WriteBenchmarks bench, final Blackhole bh) {
-        for (int i = 0; i < 10_000; i++) {
+        for (int i = 0; i < TEN_THOUSAND; i++) {
             bench.db.put(UUID.randomUUID().toString().substring(0, 14), UUID.randomUUID().toString());
         }
     }

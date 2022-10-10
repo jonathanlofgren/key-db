@@ -2,10 +2,12 @@ package keydb;
 
 import io.vavr.control.Option;
 import io.vavr.control.Try;
+import keydb.config.DBConfig;
 import keydb.file.InputFileManager;
 import keydb.file.OutputFileManager;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.SneakyThrows;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -26,6 +28,7 @@ public class MemTable implements AutoCloseable {
     @Getter
     private long size;
 
+    @SneakyThrows
     MemTable(final Path logPath) {
         this.data = new TreeMap<>();
         this.logPath = logPath;
@@ -73,28 +76,28 @@ public class MemTable implements AutoCloseable {
         });
     }
 
-    public Try<Segment> writeSegment(final Path path, final Integer id) {
+    public Try<Segment> writeSegment(final Path path, final Integer id, final DBConfig config) {
         return Try.of(() -> {
             close();
             Files.delete(logPath);
-            final Path segmentDir = path.resolve(String.valueOf(id));
+            final Path segmentDir = path.resolve(id.toString());
             Files.createDirectory(segmentDir);
 
             return FileUtils.applyWithOutput(Segment.getDataPath(segmentDir), dataOutputStream -> {
-                final SparseIndex index = writeDataAndCreateIndex(dataOutputStream);
+                final SparseIndex index = writeDataAndCreateIndex(dataOutputStream, config);
                 index.write(Segment.getIndexPath(segmentDir));
                 return new Segment(index, segmentDir, id);
             });
         });
     }
 
-    private SparseIndex writeDataAndCreateIndex(final DataOutputStream dataOutput) throws IOException {
+    private SparseIndex writeDataAndCreateIndex(final DataOutputStream dataOutput, final DBConfig config) throws IOException {
         long bytesWrittenTotal = 0;
         final SparseIndex index = new SparseIndex();
-        long bytesWrittenSinceLastIndex = Config.BYTES_PER_INDEX;
+        long bytesWrittenSinceLastIndex = config.getBytesPerIndex();
 
         for (final Map.Entry<String, String> entry : data.entrySet()) {
-            if (bytesWrittenSinceLastIndex >= Config.BYTES_PER_INDEX) {
+            if (bytesWrittenSinceLastIndex >= config.getBytesPerIndex()) {
                 index.insert(entry.getKey(), bytesWrittenTotal);
                 bytesWrittenSinceLastIndex = 0;
             }

@@ -30,10 +30,6 @@ public class SparseIndex {
         indices.add(Tuple.of(key, byteOffset));
     }
 
-    private void insert(final Tuple2<String, Long> index) {
-        insert(index._1, index._2);
-    }
-
     public long getStartSearchByteOffset(final String key) {
         final int searchIndex = Collections.binarySearch(indices, Tuple.of(key, null),
                 Comparator.comparing((Tuple2<String, Long> e) -> e._1));
@@ -46,15 +42,19 @@ public class SparseIndex {
         }
     }
 
+    /**
+     * @param path
+     * @return
+     */
     public Try<Path> write(final Path path) {
         return Try.of(() -> Files.createFile(path))
                 .andThenTry(() -> {
                     try (final OutputFileManager outputFileManager = new OutputFileManager(path)) {
                         outputFileManager.runWithOutput(dataOutputStream -> {
-                                    for (final Tuple2<String, Long> index : indices) {
-                                        DataUtils.writeIndex(index, dataOutputStream);
-                                    }
+                                for (final Tuple2<String, Long> index : indices) {
+                                    DataUtils.writeIndex(index, dataOutputStream);
                                 }
+                            }
                         );
                     }
                 });
@@ -70,5 +70,9 @@ public class SparseIndex {
                 return sparseIndex;
             }
         });
+    }
+
+    private void insert(final Tuple2<String, Long> index) {
+        insert(index._1, index._2);
     }
 }

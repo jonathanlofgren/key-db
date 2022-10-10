@@ -7,7 +7,7 @@ plugins {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(16)
+        languageVersion.set(JavaLanguageVersion.of(16))
     }
 }
 
@@ -24,11 +24,17 @@ jar {
 
 test {
     useJUnitPlatform()
+
+    testLogging {
+        exceptionFormat = 'full'
+    }
 }
 
 dependencies {
     implementation("io.vavr:vavr:0.10.3")
-    implementation('commons-io:commons-io:2.6')
+    implementation('commons-io:commons-io:2.7')
+    implementation('com.fasterxml.jackson.core:jackson-databind:2.13.4')
+
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
     testImplementation("com.google.jimfs:jimfs:1.2")

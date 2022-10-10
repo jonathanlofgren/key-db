@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -37,8 +38,8 @@ class SparseIndexTest extends TestBase {
                     final DataOutputStream stream = new DataOutputStream(output);
 
                     for (final Tuple2<String, Long> index : subject.getIndices()) {
-                        stream.writeInt(index._1.getBytes(Config.CHARSET).length);
-                        stream.write(index._1.getBytes(Config.CHARSET));
+                        stream.writeInt(index._1.getBytes(StandardCharsets.UTF_8).length);
+                        stream.write(index._1.getBytes(StandardCharsets.UTF_8));
                         stream.writeLong(index._2);
                     }
                 });

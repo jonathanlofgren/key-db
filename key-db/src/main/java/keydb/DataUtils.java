@@ -6,8 +6,12 @@ import io.vavr.Tuple2;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 public final class DataUtils {
+
+    private static final Charset CHARSET = StandardCharsets.UTF_8;
 
     static Entry readEntry(final DataInputStream dataInput) throws IOException {
         final int keyLength = dataInput.readInt();
@@ -19,14 +23,14 @@ public final class DataUtils {
         if (readKey != keyLength || readValue != valueLength) {
             throw new RuntimeException("Unexpected end of file");
         }
-        final String key = new String(keyBuffer, Config.CHARSET);
-        final String value = new String(valueBuffer, Config.CHARSET);
+        final String key = new String(keyBuffer, CHARSET);
+        final String value = new String(valueBuffer, CHARSET);
         return new Entry(key, value);
     }
 
     static long writeEntry(final DataOutputStream dataOutput, final Entry entry) throws IOException {
-        final byte[] keyBytes = entry.getKey().getBytes(Config.CHARSET);
-        final byte[] valueBytes = entry.getValue().getBytes(Config.CHARSET);
+        final byte[] keyBytes = entry.getKey().getBytes(CHARSET);
+        final byte[] valueBytes = entry.getValue().getBytes(CHARSET);
         dataOutput.writeInt(keyBytes.length);
         dataOutput.writeInt(valueBytes.length);
         dataOutput.write(keyBytes);
@@ -42,13 +46,13 @@ public final class DataUtils {
             throw new RuntimeException("Unexpected end of file");
         }
         final long byteOffset = dataInput.readLong();
-        final String key = new String(keyBuffer, Config.CHARSET);
+        final String key = new String(keyBuffer, CHARSET);
         return Tuple.of(key, byteOffset);
     }
 
     public static void writeIndex(final Tuple2<String, Long> index, final DataOutputStream dataOutputStream) throws IOException {
-        dataOutputStream.writeInt(index._1.getBytes(Config.CHARSET).length);
-        dataOutputStream.write(index._1.getBytes(Config.CHARSET));
+        dataOutputStream.writeInt(index._1.getBytes(CHARSET).length);
+        dataOutputStream.write(index._1.getBytes(CHARSET));
         dataOutputStream.writeLong(index._2);
     }
 }

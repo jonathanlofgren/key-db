@@ -6,31 +6,24 @@ import lombok.SneakyThrows;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.EOFException;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class InputFileManager extends FileManager {
+public class InputFileManager extends FileManager<DataInputStream> {
 
-    private final DataInputStream dataInputStream;
-
-    @SneakyThrows
-    public InputFileManager(final Path path) {
-        dataInputStream = new DataInputStream(new BufferedInputStream(Files.newInputStream(path)));
+    public InputFileManager(final Path path) throws IOException {
+        super(new DataInputStream(new BufferedInputStream(Files.newInputStream(path))));
     }
 
     @SneakyThrows
     public void acceptInputUntilEndOfFile(final CheckedConsumer<DataInputStream> consumer) {
         while (true) {
             try {
-                consumer.accept(dataInputStream);
+                consumer.accept(resource);
             } catch (final EOFException e) {
                 break;
             }
         }
-    }
-
-    @Override
-    public void close() throws Exception {
-        dataInputStream.close();
     }
 }

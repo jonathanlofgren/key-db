@@ -1,6 +1,7 @@
 package keydb;
 
 import io.vavr.control.Try;
+import keydb.config.DBConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ public class SegmentTest extends TestBase {
             memTable.put(key, value);
             map.put(key, value);
         }
-        subject = memTable.writeSegment(getPath("/home/user"), 200).get();
+        subject = memTable.writeSegment(getPath("/home/user"), 200, DBConfig.builder().build()).get();
         Try.of(() -> Files.createDirectory(invalid_path));
     }
 

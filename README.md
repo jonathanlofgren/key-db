@@ -18,3 +18,11 @@ Simple key-value store based on a log-structured merge-tree architecture.
 - [ ] Some basic logging
 - [ ] More interesting metrics tracking
 - [ ] Build a server (gRPC)
+
+
+## Benchmarks
+
+    9eb85a6820063c293b32857ed657b997a3ca3be6
+
+    Benchmark                        Mode  Cnt   Score   Error  Units
+    WriteBenchmarks.write1MegaByte  thrpt    5  20.683 ± 0.184  ops/s
