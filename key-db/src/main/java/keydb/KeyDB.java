@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 //
 // db/
 //      memtable
+//      config.json
 //      segments/
 //              0/
 //                  index

@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @State(Scope.Benchmark)
 public class ReadBenchmarks extends BenchmarkBase {
@@ -30,6 +31,7 @@ public class ReadBenchmarks extends BenchmarkBase {
 
     public KeyDB db;
     public HashMap<String, String> data;
+    public Set<String> missingKeys;
 
     @Setup(Level.Trial)
     public void setUp() throws IOException {
@@ -37,9 +39,10 @@ public class ReadBenchmarks extends BenchmarkBase {
             FileUtils.deleteDirectory(TEST_DB_PATH.toFile());
         }
         db = KeyDB.create(TEST_DB_PATH);
-        // Bytes: 100_000 * (14 * 2 + 36 * 2) = 10_000_000 = 10 MB (5 segments)
+        // Bytes: 100_000 * 50 = 5_000_000 = 5 MB (~2.5 segments)
         data = generateData(HUNDRED_THOUSAND);
         populateDatabase(db, data);
+        missingKeys = new HashSet<>(generateData(HUNDRED_THOUSAND).values());
     }
 
     @TearDown(Level.Iteration)
@@ -54,6 +57,15 @@ public class ReadBenchmarks extends BenchmarkBase {
     @OutputTimeUnit(TimeUnit.SECONDS)
     public void getHundredThousandExistingKeys(final WriteBenchmarks bench, final Blackhole bh) {
         for (final String key: data.keySet()) {
+            bh.consume(db.get(key));
+        }
+    }
+
+    @Benchmark
+    @BenchmarkMode(Mode.AverageTime)
+    @OutputTimeUnit(TimeUnit.SECONDS)
+    public void getHundredThousandMissingKeys(final WriteBenchmarks bench, final Blackhole bh) {
+        for (final String key: missingKeys) {
             bh.consume(db.get(key));
         }
     }

@@ -22,7 +22,7 @@ public class DBConfig {
 
     // Approximate number of bytes between the indices that are created
     // when a MemTable is persisted to form a new segment
-    // Default: 4 KB
+    // Default: 4 KB  (~500 indices for a 2MB segment)
     @Builder.Default
     long bytesPerIndex = 4_096;
 

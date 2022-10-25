@@ -26,3 +26,11 @@ Simple key-value store based on a log-structured merge-tree architecture.
 
     Benchmark                        Mode  Cnt   Score   Error  Units
     WriteBenchmarks.write1MegaByte  thrpt    5  20.683 ± 0.184  ops/s
+
+    6380eea46d44977998fe7a4db2d0a399ed44fadd
+    - fixed bug to get actual 2MB segments (was 1MB previously)
+
+    Benchmark                                       Mode  Cnt   Score   Error  Units
+    WriteBenchmarks.write1MegaByte                 thrpt    5  17.101 ± 0.317  ops/s
+    ReadBenchmarks.getHundredThousandExistingKeys   avgt    5   4.767 ± 0.210   s/op
+    ReadBenchmarks.getHundredThousandMissingKeys    avgt    5   9.186 ± 1.325   s/op
