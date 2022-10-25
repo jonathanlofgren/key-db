@@ -5,7 +5,6 @@ import io.vavr.control.Try;
 import lombok.Cleanup;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
 import java.io.BufferedInputStream;
@@ -21,11 +20,8 @@ import java.nio.file.Path;
 @EqualsAndHashCode
 public class Segment {
 
-    @NonNull
     private final SparseIndex index;
-    @NonNull
     private final Path rootPath;
-    @NonNull
     private final Integer id;
 
     public Try<Option<String>> get(final String key) {
@@ -38,13 +34,13 @@ public class Segment {
 
             while (true) {
                 try {
-                    final Entry entry = DataUtils.readEntry(dataInputStream);
-                    final int order = entry.getKey().compareTo(key);
+                    final Entry entry = Entry.read(dataInputStream);
+                    final int order = entry.key().compareTo(key);
 
                     if (order > 0) {
                         break;
                     } else if (order == 0) {
-                        return Option.some(entry.getValue());
+                        return Option.some(entry.value());
                     }
                 } catch (final EOFException e) {
                     break;

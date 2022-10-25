@@ -1,123 +1,93 @@
 package keydb;
 
+import io.vavr.control.Option;
+import io.vavr.control.Try;
 import keydb.config.DBConfig;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Disabled
 public class MemTableTest extends TestBase {
 
-    private MemTable subject;
-    private final Path not_existing_path = getPath("/home/user/no_memtable");
-    private final Path existing_path = getPath("/home/user/memtable");
+    private final Path some_path = getPath("/home/user/memtable");
 
-    @BeforeEach
-    void createMemTable() {
-        subject = new MemTable(existing_path);
+    @Test
+    void return_none_when_key_does_not_exist() throws Exception {
+        try (final MemTable sut = new MemTable(some_path)) {
+            final Option<String> key = sut.get("key");
 
-        // Bytes: 100 * (10 * 2 + 36 * 2 + 8) = 10kB
-        for (int i = 0; i < 1000; i++) {
-            subject.put(UUID.randomUUID().toString().substring(0, 10), UUID.randomUUID().toString());
+            assertThat(key).isEqualTo(Option.none());
         }
     }
 
-    @Nested
-    class Put {
-        @Test
-        void itWritesAsEntriesAreSet() {
-            final MemTable memTable = new MemTable(not_existing_path);
-            memTable.put("hey", "bob");
-            assertThat(Files.isRegularFile(not_existing_path)).isTrue();
-            memTable.put("another", "alice");
-            memTable.put("{}", "100");
-        }
+    @Test
+    void returns_correct_value_when_key_exists() throws Exception {
+        try (final MemTable sut = new MemTable(some_path)) {
+            sut.put("hey", "bob");
 
-    }
+            final Option<String> value = sut.get("hey");
 
-    @Nested
-    class Size {
-        @Test
-        void itReturnsExpectedSize() {
-            final MemTable memTable = new MemTable(not_existing_path);
-
-            assertThat(memTable.getSize()).isEqualTo(0);
-            memTable.put("hey", "bob");
-            assertThat(memTable.getSize()).isEqualTo(6 * 2 + 8);
-            memTable.put("another", "alice");
-            assertThat(memTable.getSize()).isEqualTo(6 * 2 + 8 + 12 * 2 + 8);
-            memTable.put("{}", "100");
-            assertThat(memTable.getSize()).isEqualTo(6 * 2 + 8 + 12 * 2 + 8 + 5 * 2 + 8);
-
+            assertThat(value).isEqualTo(Option.of("bob"));
         }
     }
 
-    @Nested
-    class Get {
-        @Test
-        void itReturnsCorrectData() {
-            final MemTable memTable = new MemTable(not_existing_path);
+    @Test
+    void an_empty_table_has_size_zero() throws Exception {
+        try (final MemTable sut = new MemTable(some_path)) {
+            final long size = sut.getSize();
 
-            assertThat(memTable.get("hello").isEmpty()).isTrue();
-            memTable.put("hello", "there");
-            assertThat(memTable.get("hello").get()).isEqualTo("there");
+            assertThat(size).isZero();
         }
     }
 
-    @Nested
-    class From {
-        @Nested
-        class WhenFileDoesNotExist {
-            @Test
-            void itReturnsFailure() {
-                assertThat(MemTable.from(not_existing_path).isFailure()).isTrue();
-            }
-        }
+    @Test
+    void a_table_with_data_has_correct_size() throws Exception {
+        try (final MemTable sut = new MemTable(some_path)) {
+            sut.put("hey", "bob");
 
-        @Nested
-        class WhenFileExists {
-            @Test
-            void itReturnsCorrectMemTable() {
-                final MemTable actual = MemTable.from(existing_path).get();
-                assertThat(actual).isEqualTo(subject);
-                assertThat(actual.getSize()).isEqualTo(100000);
-            }
+            final long size = sut.getSize();
+
+            assertThat(size).isEqualTo(6 * 2 + 8);
         }
     }
 
-    @Nested
-    class WriteSegment {
+    @Test
+    void table_can_be_created_from_previous_logfile() throws Exception {
+        final MemTable table = getMemTableWithData();
+        table.close();
 
-        @Test
-        void itWritesNewSegmentFilesAndDeletesMemTableLog() {
-            final Path path = getPath("/home/user/");
+        final MemTable sut = MemTable.from(some_path).get();
 
-            final Segment segment = subject.writeSegment(path, 100, DBConfig.builder().build()).get();
+        forKeyValues((key, value) -> assertThat(sut.get(key)).isEqualTo(Option.of(value)));
+    }
 
-            assertThat(Files.isRegularFile(existing_path)).isFalse();
-            assertThat(segment.getId()).isEqualTo(100);
-            assertThat(segment.getRootPath()).isEqualTo(path.resolve("100"));
-            assertThat(Files.isDirectory(path.resolve("100"))).isTrue();
-            assertThat(Files.isRegularFile(path.resolve("100/data"))).isTrue();
-            assertThat(Files.isRegularFile(path.resolve("100/index"))).isTrue();
-        }
+    @Test
+    void creating_from_non_existing_file_throws_exception() {
+        final Try<MemTable> sut = MemTable.from(some_path);
 
-        @Test
-        void itCreatesIndexAtFirstKey() {
-            final Path path = getPath("/home/user/");
-            subject.writeSegment(path, 100, DBConfig.builder().build());
+        assertThat(sut.getCause()).isExactlyInstanceOf(NoSuchFileException.class)
+                .hasMessage(some_path.toString());
+    }
 
-            final SparseIndex index = SparseIndex.from(path.resolve("100/index")).get();
+    @Test
+    void read_data_from_written_segment() {
+        final int id = 1;
+        final MemTable sut = getMemTableWithData();
 
-            assertThat(index.getIndices().size()).isGreaterThan(1);
-            assertThat(index.getIndices()).first().matches(ix -> ix._2 == 0);
-        }
+        final Segment segment = sut.writeSegment(getPath("/home/user"),
+                id,
+                DBConfig.builder().build()).get();
+
+        assertThat(segment.getId()).isEqualTo(id);
+        forKeyValues((key, value) -> assertThat(segment.get(key).get()).isEqualTo(Option.of(value)));
+    }
+
+    private MemTable getMemTableWithData() {
+        final MemTable sut = new MemTable(some_path);
+        forKeyValues(sut::put);
+        return sut;
     }
 }

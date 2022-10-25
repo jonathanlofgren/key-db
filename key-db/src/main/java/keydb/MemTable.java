@@ -50,13 +50,13 @@ public class MemTable implements AutoCloseable {
     }
 
     private void setNoWrite(final Entry entry) {
-        data.put(entry.getKey(), entry.getValue());
-        incrementSize(entry.getKey().length() * 2 + entry.getValue().length() * 2 + 8);
+        data.put(entry.key(), entry.value());
+        incrementSize(entry.getSize());
     }
 
     private void writeToLog(final Entry entry) {
         fileManager.runWithOutput(dataOutputStream -> {
-            DataUtils.writeEntry(dataOutputStream, entry);
+            entry.write(dataOutputStream);
             dataOutputStream.flush();
         });
     }
@@ -70,7 +70,7 @@ public class MemTable implements AutoCloseable {
 
             try (final InputFileManager inputFileManager = new InputFileManager(path)) {
                 inputFileManager.acceptInputUntilEndOfFile(
-                        dataInputStream -> memTable.setNoWrite(DataUtils.readEntry(dataInputStream)));
+                        dataInputStream -> memTable.setNoWrite(Entry.read(dataInputStream)));
             }
             return memTable;
         });
@@ -101,15 +101,15 @@ public class MemTable implements AutoCloseable {
                 index.insert(entry.getKey(), bytesWrittenTotal);
                 bytesWrittenSinceLastIndex = 0;
             }
-            final long bytesWritten = DataUtils.writeEntry(dataOutput, Entry.of(entry));
+            final long bytesWritten = Entry.of(entry).write(dataOutput);
             bytesWrittenTotal += bytesWritten;
             bytesWrittenSinceLastIndex += bytesWritten;
         }
         return index;
     }
 
-    private void incrementSize(final int s) {
-        size += s;
+    private void incrementSize(final long incr) {
+        size += incr;
     }
 
     @Override

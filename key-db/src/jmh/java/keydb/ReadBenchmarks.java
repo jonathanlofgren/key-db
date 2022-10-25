@@ -15,33 +15,36 @@ import org.openjdk.jmh.infra.Blackhole;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Benchmark)
-public class WriteBenchmarks {
+public class ReadBenchmarks {
 
-    private static final Path TEST_DB_PATH = Path.of("testdb_write");
+    private static final Path TEST_DB_PATH = Path.of("testdb_read");
     private static final Boolean CLEAR_TEST_DB = false;
-    private static final int TEN_THOUSAND = 10_000;
+    private static final int HUNDRED_THOUSAND = 100_000;
 
     public KeyDB db;
-    public HashMap<String, String> data;
+    public Set<String> data;
 
-    @Setup(Level.Iteration)
+    @Setup(Level.Trial)
     public void setUp() throws IOException {
         if (Files.isDirectory(TEST_DB_PATH)) {
             FileUtils.deleteDirectory(TEST_DB_PATH.toFile());
         }
         db = KeyDB.create(TEST_DB_PATH);
 
-        // Bytes: 10_000 * (14 * 2 + 36 * 2) = 1_000_000 = 1 MB
-        data = new HashMap<>();
-        for (int i = 0; i < TEN_THOUSAND; i++) {
-            data.put(UUID.randomUUID().toString().substring(0, 14), UUID.randomUUID().toString());
+        // Bytes: 100_000 * (14 * 2 + 36 * 2) = 10_000_000 = 10 MB (5 segments)
+        data = new HashSet<>();
+        for (int i = 0; i < HUNDRED_THOUSAND; i++) {
+            final String key = UUID.randomUUID().toString().substring(0, 14);
+            final String value = UUID.randomUUID().toString();
+            db.put(key, value);
+            data.add(key);
         }
-
     }
 
     @TearDown(Level.Iteration)
@@ -52,11 +55,11 @@ public class WriteBenchmarks {
     }
 
     @Benchmark
-    @BenchmarkMode(Mode.Throughput)
+    @BenchmarkMode(Mode.AverageTime)
     @OutputTimeUnit(TimeUnit.SECONDS)
-    public void write1MegaByte(final WriteBenchmarks bench, final Blackhole bh) {
-        for (int i = 0; i < TEN_THOUSAND; i++) {
-            bench.db.put(UUID.randomUUID().toString().substring(0, 14), UUID.randomUUID().toString());
+    public void getHundredThousandKeys(final WriteBenchmarks bench, final Blackhole bh) {
+        for (final String key: data) {
+            bh.consume(db.get(key));
         }
     }
 }
