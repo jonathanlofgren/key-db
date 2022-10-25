@@ -17,20 +17,14 @@ import java.nio.file.Path;
 
 public final class FileUtils {
 
-    public static void acceptInputUntilEndOfFile(
+    public static <T> T applyWithInput(
             final Path path,
-            final CheckedConsumer<DataInputStream> consumer) throws Throwable {
+            final CheckedFunction1<DataInputStream, T> consumer) throws Throwable {
         @Cleanup final InputStream inputStream = Files.newInputStream(path);
         @Cleanup final BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
         @Cleanup final DataInputStream dataInputStream = new DataInputStream(bufferedInputStream);
 
-        while (true) {
-            try {
-                consumer.accept(dataInputStream);
-            } catch (final EOFException e) {
-                break;
-            }
-        }
+        return consumer.apply(dataInputStream);
     }
 
     public static <R> R applyWithOutput(

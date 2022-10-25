@@ -18,10 +18,6 @@ public record Entry(String key, String value) {
         return new Entry(entry.getKey(), entry.getValue());
     }
 
-    public long getSize() {
-        return key.length() * 2L + value.length() * 2L + 8;
-    }
-
     public static Entry read(final DataInputStream dataInput) throws IOException {
         final int keyLength = dataInput.readInt();
         final int valueLength = dataInput.readInt();

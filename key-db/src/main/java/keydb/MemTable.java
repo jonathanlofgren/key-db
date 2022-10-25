@@ -51,12 +51,11 @@ public class MemTable implements AutoCloseable {
 
     private void setNoWrite(final Entry entry) {
         data.put(entry.key(), entry.value());
-        incrementSize(entry.getSize());
     }
 
     private void writeToLog(final Entry entry) {
         fileManager.runWithOutput(dataOutputStream -> {
-            entry.write(dataOutputStream);
+            incrementSize(entry.write(dataOutputStream));
             dataOutputStream.flush();
         });
     }

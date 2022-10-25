@@ -50,7 +50,7 @@ public class MemTableTest extends TestBase {
 
             final long size = sut.getSize();
 
-            assertThat(size).isEqualTo(6 * 2 + 8);
+            assertThat(size).isEqualTo(6 + 8);
         }
     }
 

@@ -20,7 +20,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Benchmark)
-public class WriteBenchmarks {
+public class WriteBenchmarks extends BenchmarkBase {
 
     private static final Path TEST_DB_PATH = Path.of("testdb_write");
     private static final Boolean CLEAR_TEST_DB = false;
@@ -35,13 +35,7 @@ public class WriteBenchmarks {
             FileUtils.deleteDirectory(TEST_DB_PATH.toFile());
         }
         db = KeyDB.create(TEST_DB_PATH);
-
-        // Bytes: 10_000 * (14 * 2 + 36 * 2) = 1_000_000 = 1 MB
-        data = new HashMap<>();
-        for (int i = 0; i < TEN_THOUSAND; i++) {
-            data.put(UUID.randomUUID().toString().substring(0, 14), UUID.randomUUID().toString());
-        }
-
+        data = generateData(TEN_THOUSAND);
     }
 
     @TearDown(Level.Iteration)

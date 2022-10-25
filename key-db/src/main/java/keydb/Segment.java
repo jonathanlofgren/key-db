@@ -25,11 +25,7 @@ public class Segment {
     private final Integer id;
 
     public Try<Option<String>> get(final String key) {
-        return Try.of(() -> {
-            @Cleanup final InputStream inputStream = Files.newInputStream(getDataPath(rootPath));
-            @Cleanup final BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
-            @Cleanup final DataInputStream dataInputStream = new DataInputStream(bufferedInputStream);
-
+        return Try.of(() -> FileUtils.applyWithInput(getDataPath(rootPath), dataInputStream -> {
             dataInputStream.skip(index.getStartSearchByteOffset(key));
 
             while (true) {
@@ -48,7 +44,7 @@ public class Segment {
             }
 
             return Option.none();
-        });
+        }));
     }
 
     public static Try<Segment> from(final Path rootPath) {

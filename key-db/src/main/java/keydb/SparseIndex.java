@@ -9,6 +9,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -20,25 +24,25 @@ import java.util.List;
 @ToString
 @Getter
 public class SparseIndex {
-    private final List<Tuple2<String, Long>> indices;
+    private final List<Index> indices;
 
     SparseIndex() {
         indices = new ArrayList<>();
     }
 
     public void insert(final String key, final long byteOffset) {
-        indices.add(Tuple.of(key, byteOffset));
+        insert(new Index(key, byteOffset));
     }
 
     public long getStartSearchByteOffset(final String key) {
-        final int searchIndex = Collections.binarySearch(indices, Tuple.of(key, null),
-                Comparator.comparing((Tuple2<String, Long> e) -> e._1));
+        final int searchIndex = Collections.binarySearch(
+                indices, new Index(key, 0), Comparator.comparing(Index::key));
 
         if (searchIndex < 0) {
             final int insertAt = -searchIndex - 1;
-            return (insertAt == 0) ? 0 : indices.get(insertAt - 1)._2;
+            return (insertAt == 0) ? 0 : indices.get(insertAt - 1).offset();
         } else {
-            return indices.get(searchIndex)._2;
+            return indices.get(searchIndex).offset();
         }
     }
 
@@ -48,16 +52,18 @@ public class SparseIndex {
      */
     public Try<Path> write(final Path path) {
         return Try.of(() -> Files.createFile(path))
-                .andThenTry(() -> {
-                    try (final OutputFileManager outputFileManager = new OutputFileManager(path)) {
-                        outputFileManager.runWithOutput(dataOutputStream -> {
-                                for (final Tuple2<String, Long> index : indices) {
-                                    DataUtils.writeIndex(index, dataOutputStream);
-                                }
+            .andThenTry(() -> {
+                try (final OutputFileManager outputFileManager = new OutputFileManager(path)) {
+                    outputFileManager.runWithOutput(dataOutputStream -> {
+                            // TODO: clean
+                            for (final Index index : indices) {
+                                index.write(dataOutputStream);
                             }
-                        );
-                    }
-                });
+                        }
+                    );
+                }
+            }
+        );
     }
 
     public static Try<SparseIndex> from(final Path path) {
@@ -66,13 +72,34 @@ public class SparseIndex {
         return Try.of(() -> {
             try (final InputFileManager inputFileManager = new InputFileManager(path)) {
                 inputFileManager.acceptInputUntilEndOfFile(
-                        dataInputStream -> sparseIndex.insert(DataUtils.readIndex(dataInputStream)));
+                        dataInputStream -> sparseIndex.insert(Index.read(dataInputStream)));
                 return sparseIndex;
             }
         });
     }
 
-    private void insert(final Tuple2<String, Long> index) {
-        insert(index._1, index._2);
+    private void insert(final Index index) {
+        indices.add(index);
+    }
+
+    public record Index(String key, long offset) {
+
+        public void write(final DataOutputStream dataOutputStream) throws IOException {
+            final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+            dataOutputStream.writeInt(keyBytes.length);
+            dataOutputStream.write(keyBytes);
+            dataOutputStream.writeLong(offset);
+        }
+
+        public static Index read(final DataInputStream dataInput) throws IOException {
+            final int keyLength = dataInput.readInt();
+            final byte[] keyBuffer = new byte[keyLength];
+            final int readKey = dataInput.read(keyBuffer, 0, keyLength);
+            if (readKey != keyLength) {
+                throw new RuntimeException("Unexpected end of file");
+            }
+            final long byteOffset = dataInput.readLong();
+            return new Index(new String(keyBuffer, StandardCharsets.UTF_8), byteOffset);
+        }
     }
 }

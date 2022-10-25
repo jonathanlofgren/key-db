@@ -81,6 +81,16 @@ public class KeyDBTest extends TestBase {
                 .build());
     }
 
+    @Test
+    void the_latest_value_overwrites_previous_values() {
+        final KeyDB db = createDBWithOneKeyPerSegment();
+        db.put("key1", "newValue1");
+        db.put("key2", "newValue2");
+
+        assertThat(db.get("key1")).isEqualTo(Option.of("newValue1"));
+        assertThat(db.get("key2")).isEqualTo(Option.of("newValue2"));
+    }
+
     private KeyDB createDBWithOneKeyPerSegment() {
         final KeyDB sut = KeyDB.create(getPath("db"), DBConfig.builder()
                 .memTableFlushSizeBytes(1)
