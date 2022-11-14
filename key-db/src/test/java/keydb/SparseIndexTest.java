@@ -1,5 +1,6 @@
 package keydb;
 
+import keydb.types.ValueIO;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -7,6 +8,8 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SparseIndexTest extends TestBase {
+
+    private final ValueIO<String> valueIO = ValueIO.getProvider(String.class);
 
     @Test
     void returns_correct_byte_offsets_for_keys() {
@@ -25,14 +28,14 @@ class SparseIndexTest extends TestBase {
         final Path writePath = getPath("/home/user/index");
 
         final Path writtenPath = sut.write(writePath).get();
-        final SparseIndex<String> newIndex = SparseIndex.<String>from(writePath).get();
+        final SparseIndex<String> newIndex = SparseIndex.from(writePath, valueIO).get();
 
         assertThat(writtenPath).isEqualTo(writePath);
         assertThat(newIndex).isEqualTo(sut);
     }
 
     private SparseIndex<String> buildIndex() {
-        final SparseIndex<String> index = new SparseIndex<>();
+        final SparseIndex<String> index = new SparseIndex<>(valueIO);
         index.insert("B", 20);
         index.insert("D", 200);
         index.insert("K", 1000);

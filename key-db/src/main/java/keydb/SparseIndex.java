@@ -1,18 +1,16 @@
 package keydb;
 
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
 import io.vavr.control.Try;
 import keydb.file.InputFileManager;
 import keydb.file.OutputFileManager;
+import keydb.types.ValueIO;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -26,8 +24,11 @@ import java.util.List;
 public class SparseIndex<T extends Comparable<T>> {
     private final List<Index<T>> indices;
 
-    SparseIndex() {
-        indices = new ArrayList<>();
+    private final ValueIO<T> valueIO;
+
+    public SparseIndex(final ValueIO<T> valueIO) {
+        this.indices = new ArrayList<>();
+        this.valueIO = valueIO;
     }
 
     public void insert(final T key, final long byteOffset) {
@@ -46,18 +47,14 @@ public class SparseIndex<T extends Comparable<T>> {
         }
     }
 
-    /**
-     * @param path
-     * @return
-     */
     public Try<Path> write(final Path path) {
         return Try.of(() -> Files.createFile(path))
             .andThenTry(() -> {
                 try (final OutputFileManager outputFileManager = new OutputFileManager(path)) {
                     outputFileManager.runWithOutput(dataOutputStream -> {
                             // TODO: clean
-                            for (final Index<?> index : indices) {
-                                index.write(dataOutputStream);
+                            for (final Index<T> index : indices) {
+                                index.write(dataOutputStream, valueIO);
                             }
                         }
                     );
@@ -66,13 +63,13 @@ public class SparseIndex<T extends Comparable<T>> {
         );
     }
 
-    public static <P extends Comparable<P>> Try<SparseIndex<P>> from(final Path path) {
-        final SparseIndex<P> sparseIndex = new SparseIndex<>();
+    public static <P extends Comparable<P>> Try<SparseIndex<P>> from(final Path path, final ValueIO<P> valueIO) {
+        final SparseIndex<P> sparseIndex = new SparseIndex<>(valueIO);
 
         return Try.of(() -> {
             try (final InputFileManager inputFileManager = new InputFileManager(path)) {
                 inputFileManager.acceptInputUntilEndOfFile(
-                        dataInputStream -> sparseIndex.insert(Index.read(dataInputStream)));
+                        dataInputStream -> sparseIndex.insert(Index.read(dataInputStream, valueIO)));
                 return sparseIndex;
             }
         });
@@ -84,23 +81,15 @@ public class SparseIndex<T extends Comparable<T>> {
 
     public record Index<T>(T key, long offset) {
 
-        public void write(final DataOutputStream dataOutputStream) throws IOException {
-            final byte[] keyBytes = ((String) key).getBytes(StandardCharsets.UTF_8);
-            dataOutputStream.writeInt(keyBytes.length);
-            dataOutputStream.write(keyBytes);
-            dataOutputStream.writeLong(offset);
+        public void write(final DataOutput output, final ValueIO<T> valueIO) throws IOException {
+            valueIO.write(key, output);
+            output.writeLong(offset);
         }
 
-        public static <P> Index<P> read(final DataInputStream dataInput) throws IOException {
-            final int keyLength = dataInput.readInt();
-            final byte[] keyBuffer = new byte[keyLength];
-            final int readKey = dataInput.read(keyBuffer, 0, keyLength);
-            if (readKey != keyLength) {
-                throw new RuntimeException("Unexpected end of file");
-            }
-            final long byteOffset = dataInput.readLong();
-            final P s = (P) new String(keyBuffer, StandardCharsets.UTF_8);
-            return new Index<P>(s, byteOffset);
+        public static <P> Index<P> read(final DataInput input, final ValueIO<P> valueIO) throws IOException {
+            final P key = valueIO.read(input);
+            final long byteOffset = input.readLong();
+            return new Index<P>(key, byteOffset);
         }
     }
 }

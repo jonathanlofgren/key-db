@@ -2,6 +2,7 @@ package keydb;
 
 import io.vavr.control.Option;
 import io.vavr.control.Try;
+import keydb.types.ValueIO;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -20,13 +21,13 @@ public class Segment<T extends Comparable<T>> implements Comparable<Segment<T>> 
     private final Path rootPath;
     private final Integer id;
 
-    public Try<Option<T>> get(final T key) {
+    public Try<Option<T>> get(final T key, final ValueIO<T> valueIO) {
         return Try.of(() -> FileUtils.applyWithInput(getDataPath(rootPath), dataInputStream -> {
             dataInputStream.skip(index.getStartSearchByteOffset(key));
 
             while (true) {
                 try {
-                    final Entry<T> entry = Entry.read(dataInputStream);
+                    final Entry<T> entry = Entry.read(dataInputStream, valueIO);
                     final int order = entry.key().compareTo(key);
 
                     if (order > 0) {
@@ -43,14 +44,14 @@ public class Segment<T extends Comparable<T>> implements Comparable<Segment<T>> 
         }));
     }
 
-    public static <P extends Comparable<P>> Try<Segment<P>> from(final Path rootPath) {
+    public static <P extends Comparable<P>> Try<Segment<P>> from(final Path rootPath, final ValueIO<P> valueIO) {
         return Try.of(() -> {
             if (!Files.isDirectory(rootPath)) {
                 throw new NoSuchFileException(rootPath.toString());
             }
 
             final Integer id = Integer.parseInt(rootPath.getFileName().toString());
-            final SparseIndex<P> index = SparseIndex.<P>from(getIndexPath(rootPath)).get();
+            final SparseIndex<P> index = SparseIndex.from(getIndexPath(rootPath), valueIO).get();
 
             return new Segment<>(index, rootPath, id);
         });

@@ -1,15 +1,13 @@
 package keydb;
 
+import keydb.types.ValueIO;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Represents a single entry (key-value pair) that can be stored
@@ -18,7 +16,6 @@ import java.util.Objects;
 @EqualsAndHashCode
 @RequiredArgsConstructor
 public final class Entry<T extends Comparable<T>> {
-    private static final Charset CHARSET = StandardCharsets.UTF_8;
     private final T key;
     private final T value;
 
@@ -26,29 +23,17 @@ public final class Entry<T extends Comparable<T>> {
         return new Entry<>(entry.getKey(), entry.getValue());
     }
 
-    public static <P extends Comparable<P>> Entry<P> read(final DataInputStream dataInput) throws IOException {
-        final int keyLength = dataInput.readInt();
-        final int valueLength = dataInput.readInt();
-        final byte[] keyBuffer = new byte[keyLength];
-        final byte[] valueBuffer = new byte[valueLength];
-        final int readKey = dataInput.read(keyBuffer, 0, keyLength);
-        final int readValue = dataInput.read(valueBuffer, 0, valueLength);
-        if (readKey != keyLength || readValue != valueLength) {
-            throw new RuntimeException("Unexpected end of file");
-        }
-        final String key = new String(keyBuffer, CHARSET);
-        final String value = new String(valueBuffer, CHARSET);
-        return new Entry<>((P) key, (P) value);
+    public static <P extends Comparable<P>> Entry<P> read(final DataInputStream dataInput, final ValueIO<P> valueIO) throws IOException {
+        final P key = valueIO.read(dataInput);
+        final P value = valueIO.read(dataInput);
+        return new Entry<>(key, value);
     }
 
-    public long write(final DataOutputStream dataOutput) throws IOException {
-        final byte[] keyBytes = ((String) key).getBytes(CHARSET);
-        final byte[] valueBytes = ((String) value).getBytes(CHARSET);
-        dataOutput.writeInt(keyBytes.length);
-        dataOutput.writeInt(valueBytes.length);
-        dataOutput.write(keyBytes);
-        dataOutput.write(valueBytes);
-        return 8 + keyBytes.length + valueBytes.length;
+    public long write(final DataOutputStream dataOutput, final ValueIO<T> valueIO) throws IOException {
+        final int sizeBefore = dataOutput.size();
+        valueIO.write(key, dataOutput);
+        valueIO.write(value, dataOutput);
+        return dataOutput.size() - sizeBefore;
     }
 
     public T key() {

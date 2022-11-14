@@ -64,11 +64,11 @@ public class KeyDB<T extends Comparable<T>> {
 
         try (final Stream<Path> files = Files.list(segmentDir(rootPath))) {
             final Deque<Segment<P>> segments = files
-                    .map(Segment::<P>from)
+                    .map(path -> Segment.from(path, io))
                     .map(Try::get)
                     .sorted()
                     .collect(Collectors.toCollection(ArrayDeque::new));
-            return new KeyDB<>(rootPath, loadOrCreateMemTable(rootPath), segments, io, config);
+            return new KeyDB<>(rootPath, loadOrCreateMemTable(rootPath, io), segments, io, config);
         }
     }
 
@@ -77,13 +77,13 @@ public class KeyDB<T extends Comparable<T>> {
 
         if (memTable.getSize() >= config.getMemTableFlushSizeBytes()) {
             segments.push(memTable.writeSegment(segmentDir(rootPath), getNextSegmentId(), config).get());
-            memTable = new MemTable<>(memTablePath(rootPath));
+            memTable = new MemTable<>(memTablePath(rootPath), valueIO);
         }
     }
 
     public Option<T> get(final T key) {
         return memTable.get(key).orElse(() -> segments.stream()
-                .map(segment -> segment.get(key).get())
+                .map(segment -> segment.get(key, valueIO).get())
                 .filter(value -> !value.isEmpty())
                 .findFirst()
                 .orElse(Option.none()));
@@ -106,14 +106,14 @@ public class KeyDB<T extends Comparable<T>> {
                 objectMapper().writeValueAsString(config),
                 StandardOpenOption.CREATE_NEW);
 
-        return new KeyDB<>(rootPath, new MemTable<>(memTablePath(rootPath)), new ArrayDeque<>(), io, config);
+        return new KeyDB<>(rootPath, new MemTable<>(memTablePath(rootPath), io), new ArrayDeque<>(), io, config);
     }
 
-    private static <P extends Comparable<P>> MemTable<P> loadOrCreateMemTable(final Path rootPath) {
+    private static <P extends Comparable<P>> MemTable<P> loadOrCreateMemTable(final Path rootPath, final ValueIO<P> io) {
         if (Files.isRegularFile(memTablePath(rootPath))) {
-            return MemTable.<P>from(memTablePath(rootPath)).get();
+            return MemTable.from(memTablePath(rootPath), io).get();
         }
-        return new MemTable<>(memTablePath(rootPath));
+        return new MemTable<>(memTablePath(rootPath), io);
     }
 
     private static void validateDB(final Path path) throws FileNotFoundException {

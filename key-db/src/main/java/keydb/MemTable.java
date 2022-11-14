@@ -5,6 +5,7 @@ import io.vavr.control.Try;
 import keydb.config.DBConfig;
 import keydb.file.InputFileManager;
 import keydb.file.OutputFileManager;
+import keydb.types.ValueIO;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -25,15 +26,17 @@ public class MemTable<T extends Comparable<T>> implements AutoCloseable {
     private final SortedMap<T, T> data;
     private final Path logPath;
     private final OutputFileManager fileManager;
+    private final ValueIO<T> valueIO;
     @Getter
     private long size;
 
     @SneakyThrows
-    MemTable(final Path logPath) {
+    MemTable(final Path logPath, final ValueIO<T> valueIO) {
         this.data = new TreeMap<>();
         this.logPath = logPath;
         this.fileManager = new OutputFileManager(logPath, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
         this.size = 0;
+        this.valueIO = valueIO;
     }
 
     public void put(final T key, final T value) {
@@ -55,21 +58,21 @@ public class MemTable<T extends Comparable<T>> implements AutoCloseable {
 
     private void writeToLog(final Entry<T> entry) {
         fileManager.runWithOutput(dataOutputStream -> {
-            incrementSize(entry.write(dataOutputStream));
+            incrementSize(entry.write(dataOutputStream, valueIO));
             dataOutputStream.flush();
         });
     }
 
-    public static <P extends Comparable<P>> Try<MemTable<P>> from(final Path path) {
+    public static <P extends Comparable<P>> Try<MemTable<P>> from(final Path path, final ValueIO<P> io) {
         return Try.of(() -> {
             if (!Files.isRegularFile(path)) {
                 throw new NoSuchFileException(path.toString());
             }
-            final MemTable<P> memTable = new MemTable<>(path);
+            final MemTable<P> memTable = new MemTable<>(path, io);
 
             try (final InputFileManager inputFileManager = new InputFileManager(path)) {
                 inputFileManager.acceptInputUntilEndOfFile(
-                        dataInputStream -> memTable.setNoWrite(Entry.read(dataInputStream)));
+                        dataInputStream -> memTable.setNoWrite(Entry.read(dataInputStream, io)));
             }
             return memTable;
         });
@@ -92,7 +95,7 @@ public class MemTable<T extends Comparable<T>> implements AutoCloseable {
 
     private SparseIndex<T> writeDataAndCreateIndex(final DataOutputStream dataOutput, final DBConfig config) throws IOException {
         long bytesWrittenTotal = 0;
-        final SparseIndex<T> index = new SparseIndex<>();
+        final SparseIndex<T> index = new SparseIndex<>(valueIO);
         long bytesWrittenSinceLastIndex = config.getBytesPerIndex();
 
         for (final Map.Entry<T, T> entry : data.entrySet()) {
@@ -100,7 +103,7 @@ public class MemTable<T extends Comparable<T>> implements AutoCloseable {
                 index.insert(entry.getKey(), bytesWrittenTotal);
                 bytesWrittenSinceLastIndex = 0;
             }
-            final long bytesWritten = Entry.of(entry).write(dataOutput);
+            final long bytesWritten = Entry.of(entry).write(dataOutput, valueIO);
             bytesWrittenTotal += bytesWritten;
             bytesWrittenSinceLastIndex += bytesWritten;
         }

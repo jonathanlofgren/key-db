@@ -1,6 +1,8 @@
 package keydb.types;
 
+import java.io.DataInput;
 import java.io.DataInputStream;
+import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Optional;
@@ -8,13 +10,13 @@ import java.util.ServiceLoader;
 
 public interface ValueIO<T> {
 
-    long write(final T value, final DataOutputStream output) throws IOException;
+    void write(final T value, final DataOutput output) throws IOException;
 
-    T read(final DataInputStream input) throws IOException;
+    T read(final DataInput input) throws IOException;
 
     boolean canHandle(Class<?> stringClass);
 
-
+    @SuppressWarnings("unchecked")
     static <P> ValueIO<P> getProvider(final Class<P> clazz) {
         final ServiceLoader<ValueIO> loaded = ServiceLoader.load(ValueIO.class);
 
