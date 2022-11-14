@@ -29,7 +29,7 @@ public class ReadBenchmarks extends BenchmarkBase {
     private static final Boolean CLEAR_TEST_DB = false;
     private static final int HUNDRED_THOUSAND = 100_000;
 
-    public KeyDB db;
+    public KeyDB<String> db;
     public HashMap<String, String> data;
     public Set<String> missingKeys;
 
@@ -38,7 +38,7 @@ public class ReadBenchmarks extends BenchmarkBase {
         if (Files.isDirectory(TEST_DB_PATH)) {
             FileUtils.deleteDirectory(TEST_DB_PATH.toFile());
         }
-        db = KeyDB.create(TEST_DB_PATH);
+        db = KeyDB.create(TEST_DB_PATH, String.class);
         // Bytes: 100_000 * 50 = 5_000_000 = 5 MB (~2.5 segments)
         data = generateData(HUNDRED_THOUSAND);
         populateDatabase(db, data);

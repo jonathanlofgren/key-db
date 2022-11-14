@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import keydb.config.DBConfig;
+import keydb.types.StringIO;
+import keydb.types.ValueIO;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,7 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
-import java.util.Comparator;
 import java.util.Deque;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -35,49 +36,52 @@ import java.util.stream.Stream;
 //                  data
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class KeyDB {
+public class KeyDB<T extends Comparable<T>> {
 
     private final Path rootPath;
-    private MemTable memTable;
-    private final Deque<Segment> segments;
+    private MemTable<T> memTable;
+    private final Deque<Segment<T>> segments;
+    private final ValueIO<T> valueIO;
     @Getter
     private final DBConfig config;
 
 
-    public static KeyDB create(final Path rootPath) {
-        return create(rootPath, DBConfig.builder().build());
+    public static <P extends Comparable<P>> KeyDB<P> create(final Path rootPath, final Class<P> type) {
+        return create(rootPath, DBConfig.builder().build(), type);
     }
 
-    public static KeyDB create(final Path rootPath, final DBConfig config) {
-        return createDB(rootPath, config);
+    public static <P extends Comparable<P>> KeyDB<P> create(final Path rootPath, final DBConfig config, final Class<P> type) {
+        return createDB(rootPath, config, type);
     }
 
-    public static KeyDB load(final Path rootPath) throws IOException {
+    public static <P extends Comparable<P>> KeyDB<P> load(final Path rootPath, final Class<P> type) throws IOException {
         validateDB(rootPath);
 
         final DBConfig config = objectMapper().readValue(
                 Files.readString(configPath(rootPath), StandardCharsets.UTF_8), DBConfig.class);
 
+        final ValueIO<P> io = ValueIO.getProvider(type);
+
         try (final Stream<Path> files = Files.list(segmentDir(rootPath))) {
-            final Deque<Segment> segments = files
-                    .map(Segment::from)
+            final Deque<Segment<P>> segments = files
+                    .map(Segment::<P>from)
                     .map(Try::get)
-                    .sorted(Comparator.comparing(Segment::getId).reversed())
+                    .sorted()
                     .collect(Collectors.toCollection(ArrayDeque::new));
-            return new KeyDB(rootPath, loadOrCreateMemTable(rootPath), segments, config);
+            return new KeyDB<>(rootPath, loadOrCreateMemTable(rootPath), segments, io, config);
         }
     }
 
-    public void put(final String key, final String value) {
+    public void put(final T key, final T value) {
         memTable.put(key, value);
 
         if (memTable.getSize() >= config.getMemTableFlushSizeBytes()) {
             segments.push(memTable.writeSegment(segmentDir(rootPath), getNextSegmentId(), config).get());
-            memTable = emptyMemTable(rootPath);
+            memTable = new MemTable<>(memTablePath(rootPath));
         }
     }
 
-    public Option<String> get(final String key) {
+    public Option<T> get(final T key) {
         return memTable.get(key).orElse(() -> segments.stream()
                 .map(segment -> segment.get(key).get())
                 .filter(value -> !value.isEmpty())
@@ -94,21 +98,22 @@ public class KeyDB {
     }
 
     @SneakyThrows
-    private static KeyDB createDB(final Path rootPath, final DBConfig config) {
+    private static <P extends Comparable<P>> KeyDB<P> createDB(final Path rootPath, final DBConfig config, final Class<P> type) {
+        final ValueIO<P> io = ValueIO.getProvider(type);
         Files.createDirectory(rootPath);
         Files.createDirectory(segmentDir(rootPath));
         Files.writeString(configPath(rootPath),
                 objectMapper().writeValueAsString(config),
                 StandardOpenOption.CREATE_NEW);
 
-        return new KeyDB(rootPath, emptyMemTable(rootPath), new ArrayDeque<>(), config);
+        return new KeyDB<>(rootPath, new MemTable<>(memTablePath(rootPath)), new ArrayDeque<>(), io, config);
     }
 
-    private static MemTable loadOrCreateMemTable(final Path rootPath) {
+    private static <P extends Comparable<P>> MemTable<P> loadOrCreateMemTable(final Path rootPath) {
         if (Files.isRegularFile(memTablePath(rootPath))) {
-            return MemTable.from(memTablePath(rootPath)).get();
+            return MemTable.<P>from(memTablePath(rootPath)).get();
         }
-        return emptyMemTable(rootPath);
+        return new MemTable<>(memTablePath(rootPath));
     }
 
     private static void validateDB(final Path path) throws FileNotFoundException {
@@ -119,10 +124,6 @@ public class KeyDB {
 
     private static ObjectMapper objectMapper() {
         return new ObjectMapper();
-    }
-
-    private static MemTable emptyMemTable(final Path dir) {
-        return new MemTable(memTablePath(dir));
     }
 
     private static Path configPath(final Path rootPath) {

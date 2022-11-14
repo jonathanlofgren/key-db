@@ -1,5 +1,6 @@
 package keydb;
 
+import com.google.common.collect.ImmutableList;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import keydb.config.DBConfig;
@@ -11,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -20,9 +22,9 @@ public class SegmentTest extends TestBase {
 
     @Test
     void get_returns_correct_values() {
-        final MemTable memTable = new MemTable(getPath("/home/user/memtable"));
+        final MemTable<String> memTable = new MemTable<>(getPath("/home/user/memtable"));
         forKeyValues(memTable::put);
-        final Segment sut = memTable.writeSegment(getPath("/home/user/"), 1, DBConfig.builder().build()).get();
+        final Segment<String> sut = memTable.writeSegment(getPath("/home/user/"), 1, DBConfig.builder().build()).get();
 
         forKeyValues((key, value) -> assertThat(sut.get(key).get()).isEqualTo(Option.of(value)));
     }
@@ -36,12 +38,22 @@ public class SegmentTest extends TestBase {
 
     @Test
     void creating_from_disk_returns_matching_segment() {
-        final MemTable memTable = new MemTable(getPath("/home/user/memtable"));
+        final MemTable<String> memTable = new MemTable<>(getPath("/home/user/memtable"));
         forKeyValues(memTable::put);
-        final Segment segment = memTable.writeSegment(getPath("/home/user/"), 1, DBConfig.builder().build()).get();
+        final Segment<String> segment = memTable.writeSegment(getPath("/home/user/"), 1, DBConfig.builder().build()).get();
 
-        final Segment sut = Segment.from(getPath("/home/user/1")).get();
+        final Segment<String> sut = Segment.<String>from(getPath("/home/user/1")).get();
 
         assertThat(sut).isEqualTo(segment);
+    }
+
+    @Test
+    void is_sortable_in_order_of_most_recent_segment_to_oldest() {
+        final Segment<String> one = new Segment<>(new SparseIndex<String>(), getPath("one"), 1);
+        final Segment<String> two = new Segment<>(new SparseIndex<String>(), getPath("two"), 2);
+        final Segment<String> three = new Segment<>(new SparseIndex<String>(), getPath("three"), 3);
+        final List<Segment<String>> segments = ImmutableList.of(two, one, three);
+
+        assertThat(segments.stream().sorted()).containsExactly(three, two, one);
     }
 }

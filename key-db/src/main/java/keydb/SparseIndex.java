@@ -23,20 +23,20 @@ import java.util.List;
 @EqualsAndHashCode
 @ToString
 @Getter
-public class SparseIndex {
-    private final List<Index> indices;
+public class SparseIndex<T extends Comparable<T>> {
+    private final List<Index<T>> indices;
 
     SparseIndex() {
         indices = new ArrayList<>();
     }
 
-    public void insert(final String key, final long byteOffset) {
-        insert(new Index(key, byteOffset));
+    public void insert(final T key, final long byteOffset) {
+        insert(new Index<>(key, byteOffset));
     }
 
-    public long getStartSearchByteOffset(final String key) {
+    public long getStartSearchByteOffset(final T key) {
         final int searchIndex = Collections.binarySearch(
-                indices, new Index(key, 0), Comparator.comparing(Index::key));
+                indices, new Index<>(key, 0), Comparator.comparing(Index::key));
 
         if (searchIndex < 0) {
             final int insertAt = -searchIndex - 1;
@@ -56,7 +56,7 @@ public class SparseIndex {
                 try (final OutputFileManager outputFileManager = new OutputFileManager(path)) {
                     outputFileManager.runWithOutput(dataOutputStream -> {
                             // TODO: clean
-                            for (final Index index : indices) {
+                            for (final Index<?> index : indices) {
                                 index.write(dataOutputStream);
                             }
                         }
@@ -66,8 +66,8 @@ public class SparseIndex {
         );
     }
 
-    public static Try<SparseIndex> from(final Path path) {
-        final SparseIndex sparseIndex = new SparseIndex();
+    public static <P extends Comparable<P>> Try<SparseIndex<P>> from(final Path path) {
+        final SparseIndex<P> sparseIndex = new SparseIndex<>();
 
         return Try.of(() -> {
             try (final InputFileManager inputFileManager = new InputFileManager(path)) {
@@ -78,20 +78,20 @@ public class SparseIndex {
         });
     }
 
-    private void insert(final Index index) {
+    private void insert(final Index<T> index) {
         indices.add(index);
     }
 
-    public record Index(String key, long offset) {
+    public record Index<T>(T key, long offset) {
 
         public void write(final DataOutputStream dataOutputStream) throws IOException {
-            final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+            final byte[] keyBytes = ((String) key).getBytes(StandardCharsets.UTF_8);
             dataOutputStream.writeInt(keyBytes.length);
             dataOutputStream.write(keyBytes);
             dataOutputStream.writeLong(offset);
         }
 
-        public static Index read(final DataInputStream dataInput) throws IOException {
+        public static <P> Index<P> read(final DataInputStream dataInput) throws IOException {
             final int keyLength = dataInput.readInt();
             final byte[] keyBuffer = new byte[keyLength];
             final int readKey = dataInput.read(keyBuffer, 0, keyLength);
@@ -99,7 +99,8 @@ public class SparseIndex {
                 throw new RuntimeException("Unexpected end of file");
             }
             final long byteOffset = dataInput.readLong();
-            return new Index(new String(keyBuffer, StandardCharsets.UTF_8), byteOffset);
+            final P s = (P) new String(keyBuffer, StandardCharsets.UTF_8);
+            return new Index<P>(s, byteOffset);
         }
     }
 }

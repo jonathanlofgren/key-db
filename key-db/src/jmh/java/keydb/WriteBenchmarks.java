@@ -26,7 +26,7 @@ public class WriteBenchmarks extends BenchmarkBase {
     private static final Boolean CLEAR_TEST_DB = false;
     private static final int TEN_THOUSAND = 10_000;
 
-    public KeyDB db;
+    public KeyDB<String> db;
     public HashMap<String, String> data;
 
     @Setup(Level.Iteration)
@@ -34,7 +34,7 @@ public class WriteBenchmarks extends BenchmarkBase {
         if (Files.isDirectory(TEST_DB_PATH)) {
             FileUtils.deleteDirectory(TEST_DB_PATH.toFile());
         }
-        db = KeyDB.create(TEST_DB_PATH);
+        db = KeyDB.create(TEST_DB_PATH, String.class);
         data = generateData(TEN_THOUSAND);
     }
 

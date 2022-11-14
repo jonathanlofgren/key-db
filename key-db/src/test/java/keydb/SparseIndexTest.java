@@ -10,7 +10,7 @@ class SparseIndexTest extends TestBase {
 
     @Test
     void returns_correct_byte_offsets_for_keys() {
-        final SparseIndex sut = buildIndex();
+        final SparseIndex<String> sut = buildIndex();
 
         assertThat(sut.getStartSearchByteOffset("A")).isEqualTo(0);
         assertThat(sut.getStartSearchByteOffset("B")).isEqualTo(20);
@@ -21,18 +21,18 @@ class SparseIndexTest extends TestBase {
 
     @Test
     void can_write_and_read_back_index_correctly() {
-        final SparseIndex sut = buildIndex();
+        final SparseIndex<String> sut = buildIndex();
         final Path writePath = getPath("/home/user/index");
 
         final Path writtenPath = sut.write(writePath).get();
-        final SparseIndex newIndex = SparseIndex.from(writePath).get();
+        final SparseIndex<String> newIndex = SparseIndex.<String>from(writePath).get();
 
         assertThat(writtenPath).isEqualTo(writePath);
         assertThat(newIndex).isEqualTo(sut);
     }
 
-    private SparseIndex buildIndex() {
-        final SparseIndex index = new SparseIndex();
+    private SparseIndex<String> buildIndex() {
+        final SparseIndex<String> index = new SparseIndex<>();
         index.insert("B", 20);
         index.insert("D", 200);
         index.insert("K", 1000);

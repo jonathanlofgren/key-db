@@ -20,9 +20,9 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 @EqualsAndHashCode(exclude = {"fileManager"})
-public class MemTable implements AutoCloseable {
+public class MemTable<T extends Comparable<T>> implements AutoCloseable {
 
-    private final SortedMap<String, String> data;
+    private final SortedMap<T, T> data;
     private final Path logPath;
     private final OutputFileManager fileManager;
     @Getter
@@ -36,36 +36,36 @@ public class MemTable implements AutoCloseable {
         this.size = 0;
     }
 
-    public void put(final String key, final String value) {
-        put(new Entry(key, value));
+    public void put(final T key, final T value) {
+        put(new Entry<>(key, value));
     }
 
-    public void put(final Entry entry) {
+    public void put(final Entry<T> entry) {
         setNoWrite(entry);
         writeToLog(entry);
     }
 
-    public Option<String> get(final String key) {
+    public Option<T> get(final T key) {
         return Option.of(data.get(key));
     }
 
-    private void setNoWrite(final Entry entry) {
+    private void setNoWrite(final Entry<T> entry) {
         data.put(entry.key(), entry.value());
     }
 
-    private void writeToLog(final Entry entry) {
+    private void writeToLog(final Entry<T> entry) {
         fileManager.runWithOutput(dataOutputStream -> {
             incrementSize(entry.write(dataOutputStream));
             dataOutputStream.flush();
         });
     }
 
-    public static Try<MemTable> from(final Path path) {
+    public static <P extends Comparable<P>> Try<MemTable<P>> from(final Path path) {
         return Try.of(() -> {
             if (!Files.isRegularFile(path)) {
                 throw new NoSuchFileException(path.toString());
             }
-            final MemTable memTable = new MemTable(path);
+            final MemTable<P> memTable = new MemTable<>(path);
 
             try (final InputFileManager inputFileManager = new InputFileManager(path)) {
                 inputFileManager.acceptInputUntilEndOfFile(
@@ -75,7 +75,7 @@ public class MemTable implements AutoCloseable {
         });
     }
 
-    public Try<Segment> writeSegment(final Path path, final Integer id, final DBConfig config) {
+    public Try<Segment<T>> writeSegment(final Path path, final Integer id, final DBConfig config) {
         return Try.of(() -> {
             close();
             Files.delete(logPath);
@@ -83,19 +83,19 @@ public class MemTable implements AutoCloseable {
             Files.createDirectory(segmentDir);
 
             return FileUtils.applyWithOutput(Segment.getDataPath(segmentDir), dataOutputStream -> {
-                final SparseIndex index = writeDataAndCreateIndex(dataOutputStream, config);
+                final SparseIndex<T> index = writeDataAndCreateIndex(dataOutputStream, config);
                 index.write(Segment.getIndexPath(segmentDir));
-                return new Segment(index, segmentDir, id);
+                return new Segment<>(index, segmentDir, id);
             });
         });
     }
 
-    private SparseIndex writeDataAndCreateIndex(final DataOutputStream dataOutput, final DBConfig config) throws IOException {
+    private SparseIndex<T> writeDataAndCreateIndex(final DataOutputStream dataOutput, final DBConfig config) throws IOException {
         long bytesWrittenTotal = 0;
-        final SparseIndex index = new SparseIndex();
+        final SparseIndex<T> index = new SparseIndex<>();
         long bytesWrittenSinceLastIndex = config.getBytesPerIndex();
 
-        for (final Map.Entry<String, String> entry : data.entrySet()) {
+        for (final Map.Entry<T, T> entry : data.entrySet()) {
             if (bytesWrittenSinceLastIndex >= config.getBytesPerIndex()) {
                 index.insert(entry.getKey(), bytesWrittenTotal);
                 bytesWrittenSinceLastIndex = 0;

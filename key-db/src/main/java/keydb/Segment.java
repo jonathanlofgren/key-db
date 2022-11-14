@@ -2,15 +2,11 @@ package keydb;
 
 import io.vavr.control.Option;
 import io.vavr.control.Try;
-import lombok.Cleanup;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
 import java.io.EOFException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -18,19 +14,19 @@ import java.nio.file.Path;
 @RequiredArgsConstructor
 @Getter
 @EqualsAndHashCode
-public class Segment {
+public class Segment<T extends Comparable<T>> implements Comparable<Segment<T>> {
 
-    private final SparseIndex index;
+    private final SparseIndex<T> index;
     private final Path rootPath;
     private final Integer id;
 
-    public Try<Option<String>> get(final String key) {
+    public Try<Option<T>> get(final T key) {
         return Try.of(() -> FileUtils.applyWithInput(getDataPath(rootPath), dataInputStream -> {
             dataInputStream.skip(index.getStartSearchByteOffset(key));
 
             while (true) {
                 try {
-                    final Entry entry = Entry.read(dataInputStream);
+                    final Entry<T> entry = Entry.read(dataInputStream);
                     final int order = entry.key().compareTo(key);
 
                     if (order > 0) {
@@ -47,16 +43,16 @@ public class Segment {
         }));
     }
 
-    public static Try<Segment> from(final Path rootPath) {
+    public static <P extends Comparable<P>> Try<Segment<P>> from(final Path rootPath) {
         return Try.of(() -> {
             if (!Files.isDirectory(rootPath)) {
                 throw new NoSuchFileException(rootPath.toString());
             }
 
             final Integer id = Integer.parseInt(rootPath.getFileName().toString());
-            final SparseIndex index = SparseIndex.from(getIndexPath(rootPath)).get();
+            final SparseIndex<P> index = SparseIndex.<P>from(getIndexPath(rootPath)).get();
 
-            return new Segment(index, rootPath, id);
+            return new Segment<>(index, rootPath, id);
         });
     }
 
@@ -66,5 +62,10 @@ public class Segment {
 
     public static Path getDataPath(final Path root) {
         return root.resolve("data");
+    }
+
+    @Override
+    public int compareTo(final Segment<T> anotherSegment) {
+        return anotherSegment.id.compareTo(id);
     }
 }

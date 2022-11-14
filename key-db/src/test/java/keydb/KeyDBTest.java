@@ -14,7 +14,7 @@ public class KeyDBTest extends TestBase {
 
     @Test
     void empty_database_has_no_segments() {
-        final KeyDB sut = KeyDB.create(getPath("db"));
+        final KeyDB<String> sut = KeyDB.create(getPath("db"), String.class);
 
         final int segments = sut.numSegments();
 
@@ -23,7 +23,7 @@ public class KeyDBTest extends TestBase {
 
     @Test
     void empty_database_does_not_have_key() {
-        final KeyDB sut = KeyDB.create(getPath("db"));
+        final KeyDB<String> sut = KeyDB.create(getPath("db"), String.class);
 
         final Option<String> value = sut.get("key");
 
@@ -32,7 +32,7 @@ public class KeyDBTest extends TestBase {
 
     @Test
     void put_and_get_value() {
-        final KeyDB sut = KeyDB.create(getPath("db"));
+        final KeyDB<String> sut = KeyDB.create(getPath("db"), String.class);
         sut.put("key1", "value1");
 
         final Option<String> value = sut.get("key1");
@@ -42,7 +42,7 @@ public class KeyDBTest extends TestBase {
 
     @Test
     void flush_to_new_segment_every_byte() {
-        final KeyDB sut = createDBWithOneKeyPerSegment();
+        final KeyDB<String> sut = createDBWithOneKeyPerSegment();
 
         final int segments = sut.numSegments();
         final Option<String> value = sut.get("key1");
@@ -53,7 +53,7 @@ public class KeyDBTest extends TestBase {
 
     @Test
     void loading_non_existent_database_throws_error() {
-        assertThatThrownBy(() -> KeyDB.load(getPath("db")))
+        assertThatThrownBy(() -> KeyDB.load(getPath("db"), String.class))
                 .isInstanceOf(FileNotFoundException.class);
     }
 
@@ -61,7 +61,7 @@ public class KeyDBTest extends TestBase {
     void read_from_loaded_existing_database() throws IOException {
         createDBWithOneKeyPerSegment();
 
-        final KeyDB sut = KeyDB.load(getPath("db"));
+        final KeyDB<String> sut = KeyDB.load(getPath("db"), String.class);
         final int segments = sut.numSegments();
         final Option<String> value = sut.get("key1");
 
@@ -73,7 +73,7 @@ public class KeyDBTest extends TestBase {
     void config_is_persisted_with_database() throws IOException {
         createDBWithOneKeyPerSegment();
 
-        final KeyDB sut = KeyDB.load(getPath("db"));
+        final KeyDB<String> sut = KeyDB.load(getPath("db"), String.class);
         final DBConfig config = sut.getConfig();
 
         assertThat(config).isEqualTo(DBConfig.builder()
@@ -83,7 +83,7 @@ public class KeyDBTest extends TestBase {
 
     @Test
     void the_latest_value_overwrites_previous_values() {
-        final KeyDB db = createDBWithOneKeyPerSegment();
+        final KeyDB<String> db = createDBWithOneKeyPerSegment();
         db.put("key1", "newValue1");
         db.put("key2", "newValue2");
 
@@ -91,10 +91,22 @@ public class KeyDBTest extends TestBase {
         assertThat(db.get("key2")).isEqualTo(Option.of("newValue2"));
     }
 
-    private KeyDB createDBWithOneKeyPerSegment() {
-        final KeyDB sut = KeyDB.create(getPath("db"), DBConfig.builder()
+    @Test
+    void the_latest_value_overwrites_previous_values_on_reloaded_db() throws IOException {
+        final KeyDB<String> db = createDBWithOneKeyPerSegment();
+        db.put("key1", "newValue1");
+        db.put("key2", "newValue2");
+
+        final KeyDB<String> sut = KeyDB.load(getPath("db"), String.class);
+
+        assertThat(sut.get("key1")).isEqualTo(Option.of("newValue1"));
+        assertThat(sut.get("key2")).isEqualTo(Option.of("newValue2"));
+    }
+
+    private KeyDB<String> createDBWithOneKeyPerSegment() {
+        final KeyDB<String> sut = KeyDB.create(getPath("db"), DBConfig.builder()
                 .memTableFlushSizeBytes(1)
-                .build());
+                .build(), String.class);
         sut.put("key1", "value1");
         sut.put("key2", "value2");
         sut.put("key3", "value3");
