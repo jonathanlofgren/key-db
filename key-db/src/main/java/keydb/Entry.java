@@ -1,8 +1,6 @@
 package keydb;
 
 import keydb.types.ValueIO;
-import lombok.EqualsAndHashCode;
-import lombok.RequiredArgsConstructor;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -13,12 +11,7 @@ import java.util.Map;
  * Represents a single entry (key-value pair) that can be stored
  * and retrieved from the database.
  */
-@EqualsAndHashCode
-@RequiredArgsConstructor
-public final class Entry<T extends Comparable<T>> {
-    private final T key;
-    private final T value;
-
+public record Entry<T extends Comparable<T>>(T key, T value) {
     public static <P extends Comparable<P>> Entry<P> of(final Map.Entry<P, P> entry) {
         return new Entry<>(entry.getKey(), entry.getValue());
     }
@@ -34,13 +27,5 @@ public final class Entry<T extends Comparable<T>> {
         valueIO.write(key, dataOutput);
         valueIO.write(value, dataOutput);
         return dataOutput.size() - sizeBefore;
-    }
-
-    public T key() {
-        return key;
-    }
-
-    public T value() {
-        return value;
     }
 }

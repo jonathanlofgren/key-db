@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import keydb.config.DBConfig;
-import keydb.types.StringIO;
 import keydb.types.ValueIO;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;

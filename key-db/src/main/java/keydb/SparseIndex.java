@@ -89,7 +89,7 @@ public class SparseIndex<T extends Comparable<T>> {
         public static <P> Index<P> read(final DataInput input, final ValueIO<P> valueIO) throws IOException {
             final P key = valueIO.read(input);
             final long byteOffset = input.readLong();
-            return new Index<P>(key, byteOffset);
+            return new Index<>(key, byteOffset);
         }
     }
 }

@@ -12,6 +12,6 @@ public class ValueIOTest {
     void can_load_StringIO() {
         final ValueIO<String> valueIO = ValueIO.getProvider(String.class);
 
-        assertThat(valueIO).isExactlyInstanceOf(StringIO.class);
+        assertThat(valueIO).isInstanceOf(StringIO.class);
     }
 }
